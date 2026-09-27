@@ -1,8 +1,6 @@
 // ゲームデータ定義（ミッション・猿・研究・実績など）
 'use strict';
 
-const IMG = name => `assets/fluent/${name}.png`;
-
 // 外れ用に追加されていくキーの順番
 const DECOY_ORDER = 'あいうえおかけくそたてなぬねひへほまめやゆよらろれわをんせすしつぬむ' +
   'ぎぐげござぜぞだぢづどばぶべぱぴぷぺぽ';
@@ -36,14 +34,14 @@ const MISSIONS = [
 ];
 
 const GENERATORS = [
-  { id: 'kozaru',     img: 'monkey',        name: '子猿',               kps: 0.125,      cost: 15,    desc: 'キーボードを叩くのが大好き。' },
-  { id: 'chimp',      img: 'orangutan',     name: 'チンパンジー',       kps: 0.6,      cost: 110,    desc: '両手で叩ける。' },
-  { id: 'gorilla',    img: 'gorilla',       name: 'ゴリラ',             kps: 3,     cost: 1200,   desc: 'キーが壊れるほどの打鍵力。' },
-  { id: 'school',     img: 'school',        name: '猿のタイピング教室', kps: 16,    cost: 13000,  desc: '猿が猿に打鍵を教える。' },
-  { id: 'factory',    img: 'factory',       name: 'タイプライター工場', kps: 85,    cost: 140000, desc: '何千台ものタイプライターが並ぶ。' },
-  { id: 'planet',     img: 'ringed_planet', name: '猿の惑星',           kps: 450,   cost: 1.5e+06, desc: '惑星まるごと打鍵中。' },
-  { id: 'quantum',    img: 'atom_symbol',   name: '量子猿',             kps: 2500,  cost: 2e+07, desc: 'あらゆるキーを同時に押している状態。' },
-  { id: 'multiverse', img: 'milky_way',     name: '並行宇宙の猿',       kps: 14000, cost: 3e+08,   desc: 'どこかの宇宙ではもう完成している。' },
+  { id: 'kozaru',     art: 'h:kozaru',      name: '子猿',               kps: 0.125,      cost: 15,    desc: 'キーボードを叩くのが大好き。' },
+  { id: 'chimp',      art: 'h:chimp',       name: 'チンパンジー',       kps: 0.6,      cost: 110,    desc: '両手で叩ける。' },
+  { id: 'gorilla',    art: 'h:gorilla',     name: 'ゴリラ',             kps: 3,     cost: 1200,   desc: 'キーが壊れるほどの打鍵力。' },
+  { id: 'school',     art: 'school',        name: '猿のタイピング教室', kps: 16,    cost: 13000,  desc: '猿が猿に打鍵を教える。' },
+  { id: 'factory',    art: 'factory',       name: 'タイプライター工場', kps: 85,    cost: 140000, desc: '何千台ものタイプライターが並ぶ。' },
+  { id: 'planet',     art: 'orbit',         name: '猿の惑星',           kps: 450,   cost: 1.5e+06, desc: '惑星まるごと打鍵中。' },
+  { id: 'quantum',    art: 'atom',          name: '量子猿',             kps: 2500,  cost: 2e+07, desc: 'あらゆるキーを同時に押している状態。' },
+  { id: 'multiverse', art: 'infinity',      name: '並行宇宙の猿',       kps: 14000, cost: 3e+08,   desc: 'どこかの宇宙ではもう完成している。' },
 ];
 const GEN_GROWTH = 1.15;
 
@@ -54,28 +52,28 @@ const GEN_TIERS = [
 ];
 
 const UPGRADES = [
-  { id: 'hands',   name: '両手打ち',             desc: 'クリックの打鍵数 ×2',             cost: 40,    clickMul: 2, cond: () => true },
-  { id: 'finger',  name: '指サック',             desc: 'クリックの打鍵数 ×2',             cost: 600,   clickMul: 2, cond: s => s.missionIdx >= 1 },
-  { id: 'mech',    name: 'メカニカルキーボード', desc: 'クリックの打鍵数 ×2',             cost: 9000,  clickMul: 2, cond: s => s.missionIdx >= 3 },
-  { id: 'banana1', name: 'バナナの差し入れ',     desc: 'クリックに毎秒打鍵の3%を上乗せ',  cost: 800,   clickPct: 0.03, cond: s => totalMonkeys(s) >= 3 },
-  { id: 'banana2', name: 'バナナの房',           desc: 'クリックに毎秒打鍵の5%を上乗せ',  cost: 3e4,   clickPct: 0.05, cond: s => s.ups.banana1 },
-  { id: 'banana3', name: 'バナナ農園',           desc: 'クリックに毎秒打鍵の8%を上乗せ',  cost: 2e6,   clickPct: 0.08, cond: s => s.ups.banana2 },
+  { id: 'hands',   icon: 'hand', name: '両手打ち',             desc: 'クリックの打鍵数 ×2',             cost: 40,    clickMul: 2, cond: () => true },
+  { id: 'finger',  icon: 'pointer', name: '指サック',             desc: 'クリックの打鍵数 ×2',             cost: 600,   clickMul: 2, cond: s => s.missionIdx >= 1 },
+  { id: 'mech',    icon: 'keyboard', name: 'メカニカルキーボード', desc: 'クリックの打鍵数 ×2',             cost: 9000,  clickMul: 2, cond: s => s.missionIdx >= 3 },
+  { id: 'banana1', icon: 'banana', name: 'バナナの差し入れ',     desc: 'クリックに毎秒打鍵の3%を上乗せ',  cost: 800,   clickPct: 0.03, cond: s => totalMonkeys(s) >= 3 },
+  { id: 'banana2', icon: 'banana', name: 'バナナの房',           desc: 'クリックに毎秒打鍵の5%を上乗せ',  cost: 3e4,   clickPct: 0.05, cond: s => s.ups.banana1 },
+  { id: 'banana3', icon: 'banana', name: 'バナナ農園',           desc: 'クリックに毎秒打鍵の8%を上乗せ',  cost: 2e6,   clickPct: 0.08, cond: s => s.ups.banana2 },
 ];
 
 const RESEARCH = [
-  { id: 'edu',  name: '教育',       img: 'graduation_cap', max: 10, base: 120, growth: 5,
+  { id: 'edu',  name: '教育',       icon: 'graduation-cap', max: 10, base: 120, growth: 5,
     desc: lv => `次に必要な文字が出やすくなる（当たり重み ×${(1 + 0.5 * lv).toFixed(1)} → ×${(1 + 0.5 * (lv + 1)).toFixed(1)}）`,
     cond: s => s.missionIdx >= 1 },
-  { id: 'insp', name: 'ひらめき',   img: 'light_bulb', max: 7, base: 100, growth: 4,
+  { id: 'insp', name: 'ひらめき',   icon: 'lightbulb', max: 7, base: 100, growth: 4,
     desc: lv => `ひらめきゲージが満タンになるまでの外れ回数 キー数×${inspMaxAt(lv).toFixed(1)} → ×${inspMaxAt(lv + 1).toFixed(1)}`,
     cond: s => s.missionIdx >= 3 },
-  { id: 'hint', name: '助言',       img: 'memo', max: 6, base: 150, growth: 5,
+  { id: 'hint', name: '助言',       icon: 'notebook-pen', max: 6, base: 150, growth: 5,
     desc: lv => `ヒントの待ち時間 ${hintCdAt(lv)}秒 → ${hintCdAt(lv + 1)}秒`,
     cond: s => s.missionIdx >= 1 },
-  { id: 'team', name: '執筆チーム', img: 'books', max: 4, base: 300, growth: 8,
+  { id: 'team', name: '執筆チーム', icon: 'users', max: 4, base: 300, growth: 8,
     desc: lv => `猿チームを追加して ${lv + 2} 行を同時に打つ`,
     cond: s => s.missionIdx >= 4 },
-  { id: 'away', name: '留守番',     img: 'zzz', max: 5, base: 500, growth: 6,
+  { id: 'away', name: '留守番',     icon: 'moon', max: 5, base: 500, growth: 6,
     desc: lv => `留守中の効率 ${50 + 10 * lv}%→${50 + 10 * (lv + 1)}%、上限 ${2 + 2 * lv}→${4 + 2 * lv}時間`,
     cond: s => s.missionIdx >= 1 },
 ];
@@ -110,10 +108,10 @@ const TRAIT_IDS = Object.keys(TRAITS);
 
 // 名前つきの猿の進化
 const EVOLUTION = [
-  { lv: 1,  img: 'monkey',    title: '子猿' },
-  { lv: 10, img: 'orangutan', title: 'チンパンジー' },
-  { lv: 20, img: 'gorilla',   title: 'ゴリラ' },
-  { lv: 35, img: 'monkey_face', title: '文豪猿' },
+  { lv: 1,  head: 'kozaru',  title: '子猿' },
+  { lv: 10, head: 'chimp',   title: 'チンパンジー' },
+  { lv: 20, head: 'gorilla', title: 'ゴリラ' },
+  { lv: 35, head: 'bungo',   title: '文豪猿' },
 ];
 
 const ACHIEVEMENTS = [

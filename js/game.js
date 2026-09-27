@@ -36,10 +36,10 @@ let S = newState();
 const ev = {
   frenzyUntil: 0, clickFrenzyUntil: 0, strikeUntil: 0, nextGolden: 45, goldenUntil: 0,
   combo: 0, comboUntil: 0, hintReadyAt: 0,
-  stamp: null, newKeys: {}, sleep: {},
+  newKeys: {}, sleep: {}, pendingFx: null,
 };
 const stream = { items: [], buf: '' };
-let lastDing = 0;
+let fxEnabled = false; // 起動直後の留守中シミュレーションでは演出しない
 
 // ───────── キーボード（ミッションごとに成長） ─────────
 
@@ -239,7 +239,7 @@ function typeBulk(li, K) {
     }
     K -= cost;
     if (byInsp) S.inspUses++;
-    confirmChar(li, byInsp ? 'insp' : 'hit', true);
+    confirmChar(li, byInsp ? 'insp' : 'hit');
   }
 }
 
@@ -297,27 +297,26 @@ function addKeystrokes(K, fromClick, visual, dt) {
   return gain;
 }
 
-function confirmChar(li, how, silent) {
+function confirmChar(li, how) {
   const line = S.lines[li];
+  const ch = lineText(li)[line.pos];
   line.pos++;
   line.insp = 0;
   const now = performance.now();
   ev.combo++;
   ev.comboUntil = now + (COMBO_WINDOW + 0.4 * traitSum('medachi')) * 1000;
   if (ev.combo > S.bestCombo) S.bestCombo = ev.combo;
-  ev.stamp = { li, pos: line.pos - 1, how, time: now };
-  if (!silent && now - lastDing > 120) {
-    Sound.ding();
-    lastDing = now;
-    const paper = $('paper');
-    if (paper) {
-      paper.classList.remove('shake');
-      void paper.offsetWidth;
-      paper.classList.add('shake');
-    }
-  }
-  if (how === 'insp' && !silent) toast('💡 ひらめいた！');
+  // 演出は描画のタイミングでまとめて出す（同じtick内なら最後の1文字だけ）
+  ev.pendingFx = { ch, li, pos: line.pos - 1, how, combo: ev.combo, mi: S.missionIdx };
   if (S.lines.every((_, i) => lineDone(i))) completeMission();
+}
+
+function flushFx() {
+  const f = ev.pendingFx;
+  ev.pendingFx = null;
+  if (!f || !fxEnabled) return;
+  const find = () => (S.missionIdx === f.mi ? document.querySelector(`[data-k="${f.li}-${f.pos}"]`) : null);
+  FX.confirm(esc(f.ch), f.how, f.combo, find);
 }
 
 function useHint() {
@@ -326,12 +325,13 @@ function useHint() {
   ev.hintReadyAt = performance.now() + hintCd() * 1000;
   S.hintUses++;
   const who = randomMonkeyName();
-  log(`📝 ${who ? who + 'に' : ''}「${currentTarget(li)}」を教えた。`);
+  log(`${who ? who + 'に' : ''}「${currentTarget(li)}」を教えた。`, 'notebook-pen');
   confirmChar(li, 'hint');
 }
 
 function completeMission() {
   const m = currentMission();
+  const no = S.missionIdx + 1;
   S.books.push({ id: m.id, time: Date.now() });
   if (m.id === 'konnichiwa') {
     S.gens.kozaru = (S.gens.kozaru || 0) + 1;
@@ -341,14 +341,13 @@ function completeMission() {
   S.missionIdx++;
   S.lines = freshLines(S.missionIdx);
   const added = growKeyboard(S.missionIdx);
-  Sound.fanfare();
-  confetti();
-  log(`📜 「${m.display.replace(/\n/g, ' ')}」が完成した！`);
-  queueModal(missionModalHtml(m, added));
+  log(`「${m.display.replace(/\n/g, ' ')}」が完成した。`, 'scroll-text');
+  const show = () => queueCine(m, no, added);
+  if (fxEnabled) setTimeout(show, 900); else show();
   dirty.shop = dirty.keyboard = true;
 }
 
-// ───────── 打鍵ログ・偶然の単語・迷作 ─────────
+// ───────── 打鍵記録・偶然の単語・迷作 ─────────
 
 function pushStream(c, hit, fromClick) {
   stream.items.push({ c, hit });
@@ -375,8 +374,8 @@ function foundWord(w) {
   if (first) {
     const who = randomMonkeyName();
     Sound.word();
-    log(`✨ ${who ? who + 'が' : ''}偶然「${w}」と打った！（新発見 +${fmt(bonus)}）`);
-    toast(`偶然の単語「${w}」を発見！ +${fmt(bonus)}`);
+    log(`${who ? who + 'が' : ''}偶然「${w}」と打った。新発見 +${fmt(bonus)}`, 'sparkles');
+    toast(`偶然の単語「${w}」を発見 +${fmt(bonus)}`, 'sparkles');
   } else {
     floatText(`「${w}」+${fmt(bonus)}`);
   }
@@ -386,7 +385,7 @@ function recordMeisaku(text, original) {
   if (S.meisaku.length >= MEISAKU_MAX || Math.random() > 0.08) return;
   if (S.meisaku.some(x => x.text === text)) return;
   S.meisaku.push({ text, original, by: randomMonkeyName(), time: Date.now() });
-  log(`🤦 迷作「${text}」が生まれた（正しくは「${original}」）`);
+  log(`迷作「${text}」が生まれた（正しくは「${original}」）`, 'feather');
   dirty.books = true;
 }
 
@@ -401,7 +400,7 @@ function addRoster(genId) {
   const name = free[Math.floor(Math.random() * free.length)];
   const trait = TRAIT_IDS[Math.floor(Math.random() * TRAIT_IDS.length)];
   S.roster.push({ name, trait, lv: startLv, start: startLv, xp: 0, since: Date.now() });
-  log(`🐵 新入り「${name}」（${TRAITS[trait].name}）が加わった。`);
+  log(`新入り「${name}」（${TRAITS[trait].name}）が加わった。`, 'users');
   dirty.room = dirty.roster = true;
 }
 
@@ -426,9 +425,9 @@ function gainXp(r, xp) {
     r.lv++;
     const after = stageOf(r);
     if (after !== before) {
-      Sound.fanfare();
-      toast(`🌟 ${r.name}が「${after.title}」に進化した！`);
-      log(`🌟 ${r.name}が「${after.title}」に進化した！`);
+      if (fxEnabled) Sound.fanfare();
+      toast(`${r.name}が「${after.title}」に進化した`, 'dna');
+      log(`${r.name}が「${after.title}」に進化した。`, 'dna');
       dirty.room = true;
     }
     dirty.roster = true;
@@ -447,12 +446,7 @@ function updateRoster(dt) {
   S.roster.forEach(r => {
     if (r.trait === 'nebou') {
       const until = ev.sleep[r.name] || 0;
-      if (now > until + 40000 + Math.random() * 20000) {
-        ev.sleep[r.name] = now + 15000;
-        dirty.room = true;
-      } else if (until && now > until && now - dt * 1000 <= until) {
-        dirty.room = true;
-      }
+      if (now > until + 40000 + Math.random() * 20000) ev.sleep[r.name] = now + 15000;
     }
     if (!isAsleep(r)) gainXp(r, dt);
   });
@@ -488,21 +482,21 @@ function buyTier(genId, ti) {
   const g = GENERATORS.find(x => x.id === genId);
   if (!spend(g.cost * GEN_TIERS[ti].costMul)) return;
   S.tiers[genId + '_' + ti] = true;
-  log(`${g.name}の${GEN_TIERS[ti].name}完了！ 生産 ×2`);
+  log(`${g.name}の${GEN_TIERS[ti].name}完了。生産 ×2`, 'medal');
 }
 
 function buyUpgrade(id) {
   const u = UPGRADES.find(x => x.id === id);
   if (!spend(u.cost)) return;
   S.ups[id] = true;
-  log(`🔧 「${u.name}」を導入した。`);
+  log(`「${u.name}」を導入した。`, 'wrench');
 }
 
 function buyResearch(id) {
   const r = RESEARCH.find(x => x.id === id);
   if (S.lv[id] >= r.max || !spend(researchCost(r))) return;
   S.lv[id]++;
-  log(`📚 ${r.name}が Lv${S.lv[id]} になった。`);
+  log(`${r.name}が Lv${S.lv[id]} になった。`, r.icon);
 }
 
 // ───────── イベント ─────────
@@ -520,35 +514,38 @@ function updateEvents(dt) {
   ev.nextGolden = 60 + Math.random() * 90;
   if (S.missionIdx >= 3 && now >= ev.strikeUntil && Math.random() < 0.15) {
     ev.strikeUntil = now + 45000;
-    log('✊ 猿たちがバナナの待遇改善を求めてストライキを始めた！');
+    log('猿たちがバナナの待遇改善を求めてストライキを始めた。', 'hand-fist');
     return;
   }
   golden.style.left = (8 + Math.random() * 78) + '%';
-  golden.style.top = (10 + Math.random() * 70) + '%';
+  golden.style.top = (18 + Math.random() * 50) + '%';
   golden.hidden = false;
   ev.goldenUntil = now + 13000;
 }
 
 function clickGolden() {
+  const c = FX.center($('golden'));
   $('golden').hidden = true;
   S.goldenClicks++;
+  FX.burst(c.x, c.y, { n: 60, speed: 11 });
+  FX.shockwave(c.x, c.y);
+  Sound.boom(0.6);
   const now = performance.now();
   const r = Math.random();
-  Sound.word();
   if (r < 0.4) {
     ev.frenzyUntil = now + 40000;
-    log('🍌 金のバナナ！ 猿たちが熱狂している（40秒間 生産 ×7）');
-    toast('熱狂！ 40秒間 生産 ×7');
+    log('金のバナナ。猿たちが熱狂している（40秒間 生産 ×7）', 'banana');
+    toast('熱狂 — 40秒間 生産 ×7', 'banana');
   } else if (r < 0.75) {
     const bonus = Math.max(100, kps() * 90);
     S.keys += bonus;
     S.totalKeys += bonus;
-    log(`🍌 金のバナナ！ 臨時ボーナス +${fmt(bonus)} 打鍵`);
-    toast(`臨時ボーナス +${fmt(bonus)}`);
+    log(`金のバナナ。臨時ボーナス +${fmt(bonus)} 打鍵`, 'banana');
+    toast(`臨時ボーナス +${fmt(bonus)}`, 'banana');
   } else {
     ev.clickFrenzyUntil = now + 15000;
-    log('🍌 金のバナナ！ 連打祭り（15秒間 クリック ×15）');
-    toast('連打祭り！ 15秒間 クリック ×15');
+    log('金のバナナ。連打祭り（15秒間 クリック ×15）', 'banana');
+    toast('連打祭り — 15秒間 クリック ×15', 'banana');
   }
 }
 
@@ -557,15 +554,15 @@ function settleStrike() {
   S.strikesSettled++;
   $('strikeBanner').hidden = true;
   Sound.word();
-  log('🍌 バナナで説得した。猿たちは仕事に戻った。');
+  log('バナナで説得した。猿たちは仕事に戻った。', 'banana');
 }
 
 function checkAchievements() {
   ACHIEVEMENTS.forEach(a => {
     if (S.ach[a.id] || !a.check(S)) return;
     S.ach[a.id] = Date.now();
-    toast(`🏆 実績「${a.name}」 生産 +${Math.round(ACH_BONUS * 100)}%`);
-    log(`🏆 実績「${a.name}」を解除した。`);
+    toast(`実績「${a.name}」 生産 +${Math.round(ACH_BONUS * 100)}%`, 'trophy');
+    log(`実績「${a.name}」を解除した。`, 'trophy');
     dirty.ach = true;
   });
 }
@@ -586,6 +583,7 @@ function simulate(seconds, eff) {
   const steps = Math.min(600, Math.max(1, Math.ceil(seconds)));
   const dt = seconds / steps;
   for (let i = 0; i < steps; i++) step(dt, false, eff);
+  ev.pendingFx = null;
 }
 
 function tick() {
@@ -636,10 +634,13 @@ function applyOffline() {
   const gained = S.totalKeys - before;
   const done = S.missionIdx - beforeMission;
   const capped = elapsed > secs ? `（上限 ${capH} 時間まで）` : '';
-  queueModal(`<img class="modal-img" src="${IMG('zzz')}" alt="">
+  queueModal(`<div class="modal-icon">${icon('moon')}</div>
+    <div class="kicker">WELCOME BACK</div>
     <h2>おかえりなさい</h2>
-    <p>留守の ${fmtDuration(elapsed)} の間に${capped}、猿たちが<br><b class="big">${fmt(gained)} 打鍵</b><br>しました。（効率 ${Math.round(eff * 100)}%）</p>
-    ${done > 0 ? `<p>その間に ${done} 個の作品が完成しています。</p>` : ''}`, true);
+    <p>留守の ${fmtDuration(elapsed)} の間に${capped}、猿たちが</p>
+    <p class="big">${fmt(gained)}<small>打鍵</small></p>
+    <p class="muted">効率 ${Math.round(eff * 100)}%</p>
+    ${done > 0 ? `<p>その間に ${done} 作が完成しています。</p>` : ''}`, true);
 }
 
 function fmtDuration(sec) {
@@ -656,13 +657,21 @@ const dirty = { shop: true, ach: true, books: true, roster: true, room: true, ke
 let shopSig = '';
 let paperSig = '';
 let keyboardSig = '';
+let roomSig = '';
+let rosterSig = '';
+let lastCombo = 0;
 
 function esc(s) {
   return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
-function img(name, cls) {
-  return `<img class="${cls || 'ico'}" src="${IMG(name)}" alt="" draggable="false">`;
+function art(spec, cls) {
+  if (spec.startsWith('h:')) return headSvg(spec.slice(2), cls);
+  return icon(spec, cls);
+}
+
+function pad2(n) {
+  return String(n).padStart(2, '0');
 }
 
 function renderStats() {
@@ -672,44 +681,55 @@ function renderStats() {
   document.title = `${fmt(S.keys)} 打鍵 | 無限の猿タイピスト`;
 }
 
+// 縦書き原稿の文字サイズを舞台の大きさに合わせる
+function layoutManuscript() {
+  const wrap = document.querySelector('.manuscript-wrap');
+  const m = currentMission();
+  if (!wrap) return;
+  const lines = m ? m.lines : ['日本編完'];
+  const longest = Math.max(...lines.map(l => l.length)) + 1;
+  const h = wrap.clientHeight;
+  const w = wrap.clientWidth;
+  const cs = Math.max(18, Math.min(h * 0.92 / longest, w * 0.86 / (lines.length * 1.5), 120));
+  $('paper').style.setProperty('--cs', cs + 'px');
+}
+
 function renderPaper() {
   const m = currentMission();
   const act = activeLines();
   const sig = S.missionIdx + '|' + S.lines.map(l => l.pos).join(',') + '|' + act.join(',');
   if (sig === paperSig) return;
+  const missionChanged = !paperSig.startsWith(S.missionIdx + '|');
   paperSig = sig;
 
   if (!m) {
-    $('missionChapter').textContent = '第一章　日本編　完';
+    $('missionChapter').textContent = 'CHAPTER I — 日本編';
     $('missionTitle').textContent = '渡航準備中';
-    $('missionSource').textContent = '';
-    $('paper').innerHTML = `<div class="paper-end">
-      <p class="end-title">日本編　完</p>
-      <p>猿たちはイギリス行きの船を待っている。</p>
-      <p class="muted">第二章「英語編 — To be, or not to be」は準備中です。<br>打鍵はこのまま貯まり続けます。</p></div>`;
+    $('missionSource').textContent = '第二章「英語編 — To be, or not to be」は準備中。打鍵は貯まり続ける。';
+    $('missionCount').innerHTML = '<b>完</b>';
+    $('paper').innerHTML = '<div class="pline"><span class="ptext"><span class="done">日本編</span></span></div><div class="pline"><span class="ptext"><span class="done seal-inline">完</span></span></div>';
+    layoutManuscript();
     return;
   }
 
-  $('missionChapter').textContent = `第一章　日本編　— ミッション ${S.missionIdx + 1} / ${MISSIONS.length}`;
+  $('missionChapter').textContent = 'CHAPTER I — 日本編';
   $('missionTitle').textContent = m.title;
-  $('missionSource').textContent = m.source ? `出典：${m.source}` : '';
+  $('missionSource').textContent = m.source || '';
+  $('missionCount').innerHTML = `<b>${pad2(S.missionIdx + 1)}</b><span>/ ${pad2(MISSIONS.length)}</span>`;
 
-  const st = ev.stamp && performance.now() - ev.stamp.time < 600 ? ev.stamp : null;
   $('paper').innerHTML = m.lines.map((text, li) => {
     const line = S.lines[li];
     const done = line.pos >= text.length;
     const active = act.includes(li);
-    const mark = done ? '✓' : active ? img('monkey', 'pmark-img') : '・';
     const body = [...text].map((c, k) => {
-      if (k < line.pos) {
-        const stamp = st && st.li === li && st.pos === k ? ` stamp stamp-${st.how}` : '';
-        return `<span class="done${stamp}">${esc(c)}</span>`;
-      }
-      if (k === line.pos && active) return `<span class="cursor">${esc(c)}</span>`;
-      return `<span class="todo">${esc(c)}</span>`;
+      const key = `data-k="${li}-${k}"`;
+      if (k < line.pos) return `<span class="done" ${key}>${esc(c)}</span>`;
+      if (k === line.pos && active) return `<span class="cursor" ${key}>${esc(c)}</span>`;
+      return `<span class="todo" ${key}>${esc(c)}</span>`;
     }).join('');
-    return `<div class="pline${done ? ' is-done' : ''}${active ? ' is-active' : ''}"><span class="pmark">${mark}</span><span class="ptext">${body}</span></div>`;
+    return `<div class="pline${done ? ' is-done' : ''}${active ? ' is-active' : ''}"><span class="pmark"></span><span class="ptext">${body}</span></div>`;
   }).join('');
+  if (missionChanged) layoutManuscript();
 }
 
 function renderGauges() {
@@ -720,18 +740,27 @@ function renderGauges() {
   $('inspText').textContent = `${cur} / ${max}`;
 
   const combo = ev.combo;
-  $('comboText').textContent = combo > 0 ? `${combo} コンボ ×${comboMult().toFixed(2)}` : 'コンボなし';
+  $('comboText').textContent = combo > 0 ? `コンボ ${combo}　×${comboMult().toFixed(2)}` : 'コンボ —';
   const left = Math.max(0, ev.comboUntil - performance.now()) / ((COMBO_WINDOW + 0.4 * traitSum('medachi')) * 1000);
   $('comboFill').style.width = (combo > 0 ? 100 * left : 0) + '%';
   document.body.classList.toggle('on-fire', combo >= 10);
 
-  const wait = Math.max(0, ev.hintReadyAt - performance.now()) / 1000;
-  const hb = $('hintBtn');
-  hb.disabled = wait > 0 || li === undefined;
-  $('hintText').textContent = wait > 0 ? `${Math.ceil(wait)}秒` : li === undefined ? '—' : `「${currentTarget(li)}」を教える`;
+  const big = $('comboBig');
+  if (combo !== lastCombo) {
+    big.innerHTML = combo >= 3 ? `<b>${combo}</b><span>COMBO</span><em>×${comboMult().toFixed(2)}</em>` : '';
+    if (combo > lastCombo && combo >= 3) {
+      big.classList.remove('bump');
+      void big.offsetWidth;
+      big.classList.add('bump');
+    }
+    lastCombo = combo;
+  }
 
-  const n = S.keyboard.length;
-  $('odds').textContent = `キー ${n}個 ・ 当たり 1/${(1 / pHit()).toFixed(1)}`;
+  const wait = Math.max(0, ev.hintReadyAt - performance.now()) / 1000;
+  $('hintBtn').disabled = wait > 0 || li === undefined;
+  $('hintText').textContent = wait > 0 ? `あと ${Math.ceil(wait)} 秒` : li === undefined ? '—' : `「${currentTarget(li)}」を教える`;
+
+  $('odds').textContent = `KEYS ${S.keyboard.length}　·　1/${(1 / pHit()).toFixed(1)}`;
 }
 
 function renderKeyboard() {
@@ -751,34 +780,31 @@ function renderStream() {
   $('stream').innerHTML = stream.items.map(it => `<span class="${it.hit ? 'hit' : ''}">${esc(it.c)}</span>`).join('');
 }
 
-let roomSig = '';
-
 function renderRoom() {
   const sig = S.roster.map(r => r.name + stageOf(r).lv + r.lv + isAsleep(r)).join(',') + '|' + GENERATORS.map(g => S.gens[g.id] || 0).join(',');
   if (sig === roomSig && !dirty.room) return;
   roomSig = sig;
   dirty.room = false;
   const room = $('room');
-  if (S.missionIdx < 1 && !S.roster.length) {
-    room.innerHTML = '<div class="room-empty">まだ誰もいない。「こんにちは」を完成させると猿がやってくる。</div>';
+  if (!S.roster.length) {
+    room.innerHTML = `<div class="room-empty">${headSvg('kozaru', 'room-empty-art')}<p>まだ誰もいない。<br>「こんにちは」を完成させると、最初の猿がやってくる。</p></div>`;
     return;
   }
   const named = S.roster.map((r, i) => {
     const st = stageOf(r);
-    return `<div class="desk-slot${isAsleep(r) ? ' asleep' : ''}" data-r="${i}" style="--d:${(i % 5) * 0.13}s">
+    const asleep = isAsleep(r);
+    return `<div class="desk-slot${asleep ? ' asleep' : ''}" style="--d:${((i * 37) % 50) / 100}s">
       <div class="bubbles"></div>
-      ${img(st.img, 'monkey-img')}
-      ${isAsleep(r) ? img('zzz', 'zzz') : ''}
-      <div class="typewriter">${img('keyboard', 'tw-img')}</div>
+      ${asleep ? '<div class="zzz"><i>z</i><i>z</i><i>Z</i></div>' : ''}
+      ${typistSvg(st.head)}
       <div class="tag">${esc(r.name)}<small>Lv${r.lv}</small></div>
     </div>`;
   }).join('');
   const extras = GENERATORS.map(g => {
-    const n = (S.gens[g.id] || 0);
-    if (!n) return '';
-    return `<div class="extra">${img(g.img, 'extra-img')}<span>×${fmt(n)}</span></div>`;
+    const n = S.gens[g.id] || 0;
+    return n ? `<div class="extra">${art(g.art, 'extra-art')}<span>${esc(g.name)}</span><b>${fmt(n)}</b></div>` : '';
   }).join('');
-  room.innerHTML = `<div class="room-floor">${named}</div><div class="room-extras">${extras}</div>`;
+  room.innerHTML = `<div class="room-title"><span>THE WORKSHOP</span><span>猿の仕事部屋</span></div><div class="room-floor">${named}</div><div class="room-extras">${extras}</div>`;
 }
 
 let bubbleCount = 0;
@@ -806,11 +832,11 @@ function bubble(c, hit, fromClick) {
   setTimeout(() => { el.remove(); bubbleCount--; }, 900);
 }
 
-function itemHtml({ id, icon, name, sub, cost, owned, action, disabled }) {
+function itemHtml({ id, iconHtml, name, sub, cost, owned, action, disabled }) {
   return `<button class="item" data-action="${action}" data-id="${id}" ${disabled ? 'disabled' : ''}>
-    <span class="item-icon">${icon}</span>
+    <span class="item-icon">${iconHtml}</span>
     <span class="item-main"><span class="item-name">${esc(name)}</span><span class="item-sub">${sub}</span></span>
-    <span class="item-side">${owned !== undefined ? `<span class="item-owned">${owned}</span>` : ''}<span class="item-cost" data-cost="${cost}">${fmt(cost)}</span></span>
+    <span class="item-side">${owned !== undefined ? `<span class="item-owned">${owned}</span>` : ''}<span class="item-cost" data-cost="${cost}">${icon('keyboard', 'cost-ico')}${fmt(cost)}</span></span>
   </button>`;
 }
 
@@ -829,6 +855,10 @@ function availableTiers() {
   return res;
 }
 
+function lockedHtml(text, artHtml) {
+  return `<div class="locked">${artHtml || icon('lock', 'locked-ico')}<p>${text}</p></div>`;
+}
+
 function renderShop() {
   const gens = visibleGens();
   const tiers = availableTiers();
@@ -841,18 +871,18 @@ function renderShop() {
 
     let mh = '';
     if (S.missionIdx < 1) {
-      mh = `<div class="locked">${img('monkey', 'locked-img')}<br>まずは自分の手で「こんにちは」を打ち上げよう。<br>完成すると最初の猿が仲間になり、自動で打鍵してくれます。</div>`;
+      mh = lockedHtml('まずは自分の手で「こんにちは」を打ち上げよう。<br>完成すると最初の猿が仲間になり、自動で打鍵してくれる。', headSvg('kozaru', 'locked-art'));
     } else {
       if (tiers.length) {
         mh += '<h3>特訓</h3>' + tiers.map(({ g, t, ti }) => itemHtml({
-          id: g.id + ':' + ti, icon: img(g.img), name: `${g.name}の${t.name}`, sub: `${g.name}の生産 ×2`,
+          id: g.id + ':' + ti, iconHtml: art(g.art), name: `${g.name}の${t.name}`, sub: `${g.name}の生産 ×2`,
           cost: g.cost * t.costMul, action: 'tier',
         })).join('');
       }
       mh += '<h3>猿を雇う</h3>' + gens.map(g => {
         const each = g.kps * genMult(g) * achMult();
         return itemHtml({
-          id: g.id, icon: img(g.img), name: g.name, sub: `${esc(g.desc)}<br>1体 毎秒 ${fmtRate(each)} 打鍵`,
+          id: g.id, iconHtml: art(g.art), name: g.name, sub: `${esc(g.desc)}<br>1体 毎秒 ${fmtRate(each)} 打鍵`,
           cost: genCost(g), owned: S.gens[g.id] || 0, action: 'gen',
         });
       }).join('');
@@ -862,20 +892,20 @@ function renderShop() {
 
     let rh = '';
     if (ups.length) {
-      rh += '<h3>道具</h3>' + ups.map(u => itemHtml({ id: u.id, icon: img(u.clickPct ? 'banana' : 'wrench'), name: u.name, sub: u.desc, cost: u.cost, action: 'up' })).join('');
+      rh += '<h3>道具</h3>' + ups.map(u => itemHtml({ id: u.id, iconHtml: icon(u.icon), name: u.name, sub: u.desc, cost: u.cost, action: 'up' })).join('');
     }
     if (res.length) {
       rh += '<h3>研究</h3>' + res.map(r => {
         const maxed = S.lv[r.id] >= r.max;
         return itemHtml({
-          id: r.id, icon: img(r.img), name: `${r.name} Lv${S.lv[r.id]}${maxed ? '（最大）' : ''}`,
+          id: r.id, iconHtml: icon(r.icon), name: `${r.name} Lv${S.lv[r.id]}${maxed ? '（最大）' : ''}`,
           sub: maxed ? '研究しつくした' : r.desc(S.lv[r.id]), cost: maxed ? Infinity : researchCost(r), action: 'res', disabled: maxed,
         });
       }).join('');
     }
     const owned = UPGRADES.filter(u => S.ups[u.id]);
     if (owned.length) rh += `<h3>導入済み</h3><p class="muted small">${owned.map(u => u.name).join('・')}</p>`;
-    if (!rh) rh = '<div class="locked">まだ研究できるものはない。</div>';
+    if (!rh) rh = lockedHtml('まだ研究できるものはない。');
     $('panelResearch').innerHTML = rh;
   }
   document.querySelectorAll('.side .item').forEach(el => {
@@ -892,10 +922,10 @@ function renderAch() {
   const got = Object.keys(S.ach).length;
   $('panelAch').innerHTML = `<p class="muted">解除 ${got} / ${ACHIEVEMENTS.length}（生産 +${Math.round(got * ACH_BONUS * 100)}%）</p>
     <div class="ach-grid">${ACHIEVEMENTS.map(a => `<div class="ach ${S.ach[a.id] ? 'got' : ''}" title="${esc(a.desc)}">
-      ${S.ach[a.id] ? img('trophy', 'ach-img') : '<span class="ach-q">？</span>'}<span class="ach-name">${S.ach[a.id] ? esc(a.name) : '？？？'}</span><span class="ach-desc">${esc(a.desc)}</span></div>`).join('')}</div>
+      ${icon(S.ach[a.id] ? 'trophy' : 'lock', 'ach-ico')}<span class="ach-name">${S.ach[a.id] ? esc(a.name) : '？？？'}</span><span class="ach-desc">${esc(a.desc)}</span></div>`).join('')}</div>
     <h3>偶然の単語</h3>
-    <p class="muted small">打鍵ログに偶然あらわれた単語。見つけるたびにボーナス。</p>
-    <div class="words">${WORDS.map(w => S.words[w] ? `<span class="word got">${esc(w)}<small>×${S.words[w]}</small></span>` : `<span class="word">${'？'.repeat(w.length)}</span>`).join('')}</div>`;
+    <p class="muted small">打鍵記録に偶然あらわれた単語。見つけるたびにボーナス。</p>
+    <div class="words">${WORDS.map(w => S.words[w] ? `<span class="word got">${esc(w)}<small>×${S.words[w]}</small></span>` : `<span class="word">${'・'.repeat(w.length)}</span>`).join('')}</div>`;
 }
 
 function renderBooks() {
@@ -905,15 +935,13 @@ function renderBooks() {
   html += S.books.length ? '<div class="shelf">' + S.books.map((b, i) => {
     const m = MISSIONS.find(x => x.id === b.id);
     return `<button class="book" data-book="${i}" style="--hue:${(i * 47) % 360}"><span>${esc(m.display.split('\n')[0])}</span></button>`;
-  }).join('') + '</div><p class="muted small">背表紙をクリックすると読めます。</p>' : '<div class="locked">まだ完成した作品はない。</div>';
-  html += `<h3>迷作（${S.meisaku.length} / ${MEISAKU_MAX}）</h3>`;
+  }).join('') + '</div><p class="muted small">背表紙を押すと、もう一度上映される。</p>' : lockedHtml('まだ完成した作品はない。', icon('library', 'locked-ico'));
+  html += `<h3>迷作　${S.meisaku.length} / ${MEISAKU_MAX}</h3>`;
   html += S.meisaku.length ? '<ul class="meisaku">' + S.meisaku.slice().reverse().map(x =>
     `<li><span class="mz">${esc(x.text)}</span><span class="mz-meta">${x.by ? esc(x.by) + ' 作 ・ ' : ''}正しくは「${esc(x.original)}」</span></li>`).join('') + '</ul>'
-    : '<p class="muted small">完成直前に最後の1文字を打ち間違えると迷作が生まれることがある。</p>';
+    : '<p class="muted small">完成直前に最後の1文字を打ち間違えると、迷作が生まれることがある。</p>';
   $('panelBooks').innerHTML = html;
 }
-
-let rosterSig = '';
 
 function renderRoster() {
   const sig = S.roster.map(r => r.name + r.lv).join(',') + '|' + totalMonkeys(S);
@@ -922,12 +950,13 @@ function renderRoster() {
       const r = S.roster[i];
       if (r) el.style.width = (100 * r.xp / xpNeed(r.lv)) + '%';
     });
+    document.querySelectorAll('.feed').forEach(b => { b.disabled = S.keys < parseFloat(b.dataset.cost); });
     return;
   }
   rosterSig = sig;
   dirty.roster = false;
   if (!S.roster.length) {
-    $('panelRoster').innerHTML = '<div class="locked">まだ猿はいない。</div>';
+    $('panelRoster').innerHTML = lockedHtml('まだ猿はいない。', headSvg('kozaru', 'locked-art'));
     return;
   }
   const others = (S.gens.kozaru || 0) + (S.gens.chimp || 0) + (S.gens.gorilla || 0) - S.roster.length;
@@ -935,13 +964,13 @@ function renderRoster() {
     const st = stageOf(r);
     const cost = feedCost(r);
     return `<li>
-      ${img(st.img, 'r-img')}
+      <span class="r-art">${headSvg(st.head)}</span>
       <div class="r-main">
-        <div><span class="r-name">${esc(r.name)}</span> <span class="r-meta">${esc(st.title)} Lv${r.lv}</span></div>
-        <div class="r-trait"><b>${esc(TRAITS[r.trait].name)}</b>：${esc(TRAITS[r.trait].desc)}</div>
+        <div><span class="r-name">${esc(r.name)}</span> <span class="r-meta">${esc(st.title)}　Lv${r.lv}</span></div>
+        <div class="r-trait"><b>${esc(TRAITS[r.trait].name)}</b>　${esc(TRAITS[r.trait].desc)}</div>
         <div class="xp"><div class="xp-fill" style="width:${100 * r.xp / xpNeed(r.lv)}%"></div></div>
       </div>
-      <button class="btn feed" data-feed="${i}" data-cost="${cost}" ${S.keys < cost ? 'disabled' : ''}>${img('banana', 'btn-img')}${fmt(cost)}</button>
+      <button class="btn feed" data-feed="${i}" data-cost="${cost}" ${S.keys < cost ? 'disabled' : ''}>${icon('banana', 'btn-ico')}${fmt(cost)}</button>
     </li>`;
   }).join('') + '</ul>' + (others > 0 ? `<p class="muted small">ほか、名もなき猿たち ${fmt(others)} 匹。</p>` : '');
 }
@@ -954,29 +983,27 @@ function render() {
   renderStream();
   renderRoom();
   renderShop();
+  flushFx();
   const tab = document.querySelector('.tab.active').dataset.tab;
   if (tab === 'ach') renderAch();
   if (tab === 'books') renderBooks();
-  if (tab === 'roster') {
-    renderRoster();
-    document.querySelectorAll('.feed').forEach(b => { b.disabled = S.keys < parseFloat(b.dataset.cost); });
-  }
+  if (tab === 'roster') renderRoster();
 }
 
 // ───────── UI 部品 ─────────
 
-function log(text) {
+function log(text, ico) {
   const li = document.createElement('li');
-  li.textContent = text;
+  li.innerHTML = `${icon(ico || 'sparkle', 'log-ico')}<span>${esc(text)}</span>`;
   const ul = $('log');
   ul.prepend(li);
   while (ul.children.length > 40) ul.lastChild.remove();
 }
 
-function toast(text) {
+function toast(text, ico) {
   const el = document.createElement('div');
   el.className = 'toast';
-  el.textContent = text;
+  el.innerHTML = `${icon(ico || 'sparkle', 'toast-ico')}<span>${esc(text)}</span>`;
   const box = $('toasts');
   while (box.children.length >= 3) box.firstChild.remove();
   box.appendChild(el);
@@ -993,54 +1020,51 @@ function floatText(text) {
   setTimeout(() => el.remove(), 900);
 }
 
-function confetti() {
-  const colors = ['#d9a520', '#a2342a', '#3f6b3a', '#2f5d8a', '#f5ecd7'];
-  for (let i = 0; i < 70; i++) {
-    const el = document.createElement('div');
-    el.className = 'confetti';
-    el.style.left = Math.random() * 100 + 'vw';
-    el.style.background = colors[i % colors.length];
-    el.style.animationDelay = Math.random() * 0.4 + 's';
-    el.style.setProperty('--r', (Math.random() * 720 - 360) + 'deg');
-    el.style.setProperty('--dx', (Math.random() * 120 - 60) + 'px');
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 2600);
-  }
+// モーダルとシネマティックを1つの列で順番に見せる
+const overlayQueue = [];
+let overlayOpen = false;
+let modalDone = null;
+
+function queueOverlay(show, front) {
+  if (front) overlayQueue.unshift(show); else overlayQueue.push(show);
+  if (!overlayOpen) nextOverlay();
 }
 
-const modalQueue = [];
-
-function queueModal(html, front) {
-  if (front) modalQueue.unshift(html); else modalQueue.push(html);
-  if ($('modal').hidden) showNextModal();
-}
-
-function showNextModal() {
-  const html = modalQueue.shift();
-  if (!html) {
-    $('modal').hidden = true;
+function nextOverlay() {
+  const show = overlayQueue.shift();
+  if (!show) {
+    overlayOpen = false;
     return;
   }
-  $('modalBody').innerHTML = html;
-  $('modal').hidden = false;
+  overlayOpen = true;
+  show(nextOverlay);
 }
 
-function missionModalHtml(m, added) {
-  const keys = added && added.length
-    ? `<p class="newkeys">新しいキー：${added.map(c => `<span class="kc new">${esc(c)}</span>`).join('')}</p>` : '';
-  return `${img('party_popper', 'modal-img')}
-    <div class="mission-clear">完 成</div>
-    <div class="calligraphy">${esc(m.display).replace(/\n/g, '<br>')}</div>
-    ${m.source ? `<div class="muted">— ${esc(m.source)}</div>` : ''}
-    <p class="reward">${esc(m.reward)}</p>${keys}`;
+function queueModal(html, front) {
+  queueOverlay(done => {
+    $('modalBody').innerHTML = html;
+    $('modal').hidden = false;
+    modalDone = done;
+  }, front);
 }
 
-function bookModalHtml(b) {
-  const m = MISSIONS.find(x => x.id === b.id);
-  const d = new Date(b.time);
-  return `<div class="calligraphy">${esc(m.display).replace(/\n/g, '<br>')}</div>
-    ${m.source ? `<div class="muted">— ${esc(m.source)}</div>` : ''}
-    <p class="muted small">${d.toLocaleString('ja-JP')} 完成</p>`;
+function closeModal() {
+  $('modal').hidden = true;
+  const d = modalDone;
+  modalDone = null;
+  if (d) d();
+}
+
+function queueCine(m, no, added) {
+  const keysHtml = added && added.length
+    ? `<div class="newkeys"><span class="kicker">NEW KEYS</span>${added.map(c => `<span class="kc new">${esc(c)}</span>`).join('')}</div>` : '';
+  queueOverlay(done => FX.cinematic({
+    kicker: `CHAPTER I　·　第 ${no} 作`,
+    display: m.display,
+    source: m.source,
+    reward: m.reward,
+    keysHtml,
+  }, done));
 }
 
 function doClick() {
@@ -1060,17 +1084,31 @@ function doClick() {
   renderPaper();
   renderGauges();
   renderKeyboard();
+  flushFx();
+}
+
+function fillIcons(root) {
+  (root || document).querySelectorAll('[data-icon]').forEach(el => {
+    if (!el.querySelector('svg')) el.insertAdjacentHTML('afterbegin', icon(el.dataset.icon));
+  });
 }
 
 function bindUI() {
+  fillIcons();
+  $('logoMark').innerHTML = headSvg('bungo');
+  $('golden').innerHTML = icon('banana');
+
   $('typeKey').addEventListener('click', doClick);
   $('hintBtn').addEventListener('click', () => { Sound.ensure(); useHint(); render(); });
   document.addEventListener('keydown', e => {
     if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
     const tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'textarea' || tag === 'input') return;
-    if (!$('modal').hidden) {
-      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') { e.preventDefault(); showNextModal(); }
+    if (overlayOpen) {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+        e.preventDefault();
+        if (!$('cine').hidden) FX.cineSkip(); else closeModal();
+      }
       return;
     }
     if (e.key === 'Tab') return;
@@ -1097,7 +1135,10 @@ function bindUI() {
       return;
     }
     const book = e.target.closest('.book');
-    if (book) queueModal(bookModalHtml(S.books[+book.dataset.book]));
+    if (book) {
+      const b = S.books[+book.dataset.book];
+      queueCine(MISSIONS.find(x => x.id === b.id), MISSIONS.findIndex(x => x.id === b.id) + 1, []);
+    }
   });
 
   $('tabs').addEventListener('click', e => {
@@ -1111,7 +1152,7 @@ function bindUI() {
 
   $('golden').addEventListener('click', clickGolden);
   $('strikeBtn').addEventListener('click', settleStrike);
-  $('modalOk').addEventListener('click', showNextModal);
+  $('modalOk').addEventListener('click', closeModal);
 
   $('muteBtn').addEventListener('click', () => {
     S.muted = Sound.muted = !S.muted;
@@ -1122,7 +1163,7 @@ function bindUI() {
     save();
     $('saveText').value = btoa(unescape(encodeURIComponent(JSON.stringify(S))));
     $('saveText').select();
-    toast('セーブ文字列を書き出しました');
+    toast('セーブ文字列を書き出しました', 'check');
   });
   $('importBtn').addEventListener('click', () => {
     const text = $('saveText').value.trim();
@@ -1133,11 +1174,11 @@ function bindUI() {
       Object.keys(dirty).forEach(k => { dirty[k] = true; });
       paperSig = '';
       save();
-      toast('セーブを読み込みました');
+      toast('セーブを読み込みました', 'check');
       updateMuteBtn();
       render();
     } catch (e) {
-      toast('読み込みに失敗しました');
+      toast('読み込みに失敗しました', 'x');
     }
   });
   $('resetBtn').addEventListener('click', () => {
@@ -1147,12 +1188,13 @@ function bindUI() {
     location.reload();
   });
 
+  addEventListener('resize', layoutManuscript);
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
   window.addEventListener('beforeunload', save);
 }
 
 function updateMuteBtn() {
-  $('muteBtn').textContent = S.muted ? '🔇' : '🔊';
+  $('muteBtn').innerHTML = icon(S.muted ? 'volume-x' : 'volume-2');
 }
 
 // ───────── 起動 ─────────
@@ -1160,13 +1202,16 @@ function updateMuteBtn() {
 function init() {
   load();
   bindUI();
+  FX.init();
   updateMuteBtn();
   applyOffline();
   if (S.totalKeys === 0) {
-    log('🐒 無限の猿がタイプライターを叩けば、いつかシェイクスピアを書き上げる——らしい。');
-    log('まずは自分の手で打ってみよう。');
+    log('無限の猿がタイプライターを叩けば、いつかシェイクスピアを書き上げる——らしい。', 'infinity');
+    log('まずは自分の手で打ってみよう。', 'pointer');
   }
   render();
+  layoutManuscript();
+  fxEnabled = true;
   lastTick = performance.now();
   setInterval(() => {
     tick();

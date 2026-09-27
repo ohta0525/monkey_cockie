@@ -29,10 +29,12 @@
 - `js/data.js` — ミッション・猿・研究・実績などのデータ
 - `js/sound.js` — WebAudio 効果音
 - `js/game.js` — ゲームロジック（大量の打鍵は幾何分布でまとめて判定）
-- `assets/fluent/` — 画像素材
+- `js/fx.js` — 演出（文字の叩きつけ・衝撃波・火花・完成シネマティック）
+- `js/icons.js` — Lucide アイコン
+- `js/art.js` — 猿とタイプライターの線画（自作 SVG）
 
 セーブは localStorage に自動保存。設定タブから文字列で書き出し／読み込みできます。
 
 ## クレジット
 
-画像素材：[Microsoft Fluent Emoji](https://github.com/microsoft/fluentui-emoji)（MIT License、`assets/fluent/LICENSE`）
+アイコン：[Lucide](https://lucide.dev)（ISC License、`assets/LUCIDE_LICENSE`）。猿の線画は自作。

@@ -7,87 +7,97 @@
   <meta name="description" content="猿が無限にタイプしたらシェイクスピアも書けるのか？ 放置型タイピングゲーム">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@400;700&family=Yuji+Syuku&family=Special+Elite&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@400;700;900&family=Yuji+Syuku&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <div class="grain" aria-hidden="true"></div>
+
   <header class="topbar">
-    <h1 class="logo"><img class="logo-img" src="assets/fluent/monkey_face.png" alt="">無限の猿<span>タイピスト</span></h1>
+    <h1 class="logo">
+      <span class="logo-mark" id="logoMark"></span>
+      <span class="logo-text">無限の猿<small>タイピスト</small></span>
+    </h1>
     <div class="stats">
-      <div class="stat"><span class="stat-label">打鍵</span><span id="statKeys" class="stat-value">0</span></div>
-      <div class="stat"><span class="stat-label">毎秒</span><span id="statKps" class="stat-value">0</span></div>
-      <div class="stat"><span class="stat-label">1クリック</span><span id="statClick" class="stat-value">1</span></div>
+      <div class="stat"><span class="stat-label" data-icon="keyboard">打鍵</span><span id="statKeys" class="stat-value">0</span></div>
+      <div class="stat"><span class="stat-label" data-icon="zap">毎秒</span><span id="statKps" class="stat-value">0</span></div>
+      <div class="stat"><span class="stat-label" data-icon="pointer">一打</span><span id="statClick" class="stat-value">1</span></div>
     </div>
-    <button id="muteBtn" class="icon-btn" title="音のオン／オフ">🔊</button>
+    <button id="muteBtn" class="icon-btn" title="音のオン／オフ"></button>
   </header>
 
   <div id="strikeBanner" class="strike-banner" hidden>
-    <img class="strike-img" src="assets/fluent/raised_fist.png" alt=""> 猿たちがストライキ中！（生産 ×0.5）
-    <button id="strikeBtn" class="btn">🍌 バナナで説得する</button>
+    <span data-icon="hand-fist"></span>
+    <span>猿たちがストライキ中 — 生産 ×0.5</span>
+    <button id="strikeBtn" class="btn gold"><span data-icon="banana"></span>バナナで説得する</button>
   </div>
 
   <main class="layout">
-    <section class="desk" id="desk">
-      <div class="mission-head">
-        <div id="missionChapter" class="mission-chapter">第一章　日本編</div>
-        <div id="missionTitle" class="mission-title"></div>
-        <div id="missionSource" class="mission-source"></div>
-      </div>
-
-      <div class="paper" id="paper"></div>
-
-      <div class="gauges">
-        <div class="gauge">
-          <img class="gauge-img" src="assets/fluent/light_bulb.png" alt="">
-          <div class="gauge-body">
-            <div class="gauge-label">ひらめき <span id="inspText"></span></div>
-            <div class="bar"><div class="bar-fill insp" id="inspFill"></div></div>
+    <section class="play">
+      <div class="stage" id="stage">
+        <div class="stage-bg" aria-hidden="true"></div>
+        <div class="stage-head">
+          <div>
+            <div id="missionChapter" class="kicker"></div>
+            <div id="missionTitle" class="mission-title"></div>
+            <div id="missionSource" class="mission-source"></div>
           </div>
+          <div class="mission-count" id="missionCount"></div>
         </div>
-        <div class="gauge">
-          <img class="gauge-img" src="assets/fluent/fire.png" alt="">
-          <div class="gauge-body">
-            <div class="gauge-label" id="comboText"></div>
-            <div class="bar"><div class="bar-fill combo" id="comboFill"></div></div>
+        <div class="manuscript-wrap"><div class="manuscript" id="paper"></div></div>
+        <div class="combo-big" id="comboBig"></div>
+        <div class="slam-layer" id="slamLayer"></div>
+        <button id="golden" class="golden" title="金のバナナ" hidden></button>
+        <div class="stage-hud">
+          <div class="gauge">
+            <span class="gauge-icon" data-icon="lightbulb"></span>
+            <div class="gauge-body">
+              <div class="gauge-label">ひらめき <span id="inspText"></span></div>
+              <div class="bar"><div class="bar-fill insp" id="inspFill"></div></div>
+            </div>
           </div>
+          <div class="gauge">
+            <span class="gauge-icon" data-icon="flame"></span>
+            <div class="gauge-body">
+              <div class="gauge-label" id="comboText"></div>
+              <div class="bar"><div class="bar-fill combo" id="comboFill"></div></div>
+            </div>
+          </div>
+          <button id="hintBtn" class="gauge hint-btn" title="次の1文字を猿に教える">
+            <span class="gauge-icon" data-icon="notebook-pen"></span>
+            <span class="gauge-body"><span class="gauge-label">ヒント</span><span id="hintText" class="hint-text"></span></span>
+          </button>
         </div>
-        <button id="hintBtn" class="hint-btn" title="次の1文字を猿に教える">
-          <img class="gauge-img" src="assets/fluent/memo.png" alt="">
-          <span><span class="gauge-label">ヒント</span><br><span id="hintText" class="hint-text"></span></span>
-        </button>
       </div>
 
-      <div class="keyboard-wrap">
-        <div class="kb-head"><span>猿のタイプライター</span><span id="odds" class="odds"></span></div>
-        <div class="keyboard" id="keyboard"></div>
-      </div>
-
-      <div class="key-area" id="keyArea">
-        <div class="key-bubbles" id="keyBubbles"></div>
-        <button id="typeKey" class="typekey" aria-label="打鍵する">
-          <span class="typekey-face">打</span>
-        </button>
-        <div class="key-hint">クリック／どのキーでも打鍵</div>
+      <div class="console">
+        <div class="keyboard-wrap">
+          <div class="kb-head"><span>猿のタイプライター</span><span id="odds" class="odds"></span></div>
+          <div class="keyboard" id="keyboard"></div>
+        </div>
+        <div class="key-area" id="keyArea">
+          <div class="key-bubbles" id="keyBubbles"></div>
+          <button id="typeKey" class="typekey" aria-label="打鍵する"><span class="typekey-face">打</span></button>
+          <div class="key-hint">クリック／どのキーでも打鍵</div>
+        </div>
       </div>
 
       <div class="stream-wrap">
-        <div class="stream-label">打鍵ログ</div>
+        <div class="stream-label">打鍵記録</div>
         <div class="stream" id="stream"></div>
       </div>
 
       <div class="room" id="room"></div>
-
-      <img id="golden" class="golden" src="assets/fluent/banana.png" alt="金のバナナ" title="金のバナナ！" hidden>
     </section>
 
     <aside class="side">
       <nav class="tabs" id="tabs">
-        <button data-tab="monkeys" class="tab active">猿</button>
-        <button data-tab="research" class="tab">研究</button>
-        <button data-tab="ach" class="tab">実績</button>
-        <button data-tab="books" class="tab">書棚</button>
-        <button data-tab="roster" class="tab">名簿</button>
-        <button data-tab="settings" class="tab">設定</button>
+        <button data-tab="monkeys" class="tab active"><span data-icon="users"></span>猿</button>
+        <button data-tab="research" class="tab"><span data-icon="flask-conical"></span>研究</button>
+        <button data-tab="ach" class="tab"><span data-icon="trophy"></span>実績</button>
+        <button data-tab="books" class="tab"><span data-icon="library"></span>書棚</button>
+        <button data-tab="roster" class="tab"><span data-icon="scroll-text"></span>名簿</button>
+        <button data-tab="settings" class="tab"><span data-icon="settings"></span>設定</button>
       </nav>
       <div class="tab-panels">
         <div class="panel active" data-panel="monkeys" id="panelMonkeys"></div>
@@ -108,7 +118,7 @@
             <button id="resetBtn" class="btn danger">最初からやり直す</button>
           </div>
           <p class="muted small">「猿が無限にタイプライターを叩けば、いつかシェイクスピアを書き上げる」——無限の猿定理より。</p>
-          <p class="muted small">画像素材：<a href="https://github.com/microsoft/fluentui-emoji" target="_blank" rel="noopener">Microsoft Fluent Emoji</a>（MIT License）</p>
+          <p class="muted small">アイコン：<a href="https://lucide.dev" target="_blank" rel="noopener">Lucide</a>（ISC License）</p>
         </div>
       </div>
       <div class="log-wrap">
@@ -118,17 +128,39 @@
     </aside>
   </main>
 
+  <div id="cine" class="cine" hidden>
+    <div class="cine-bar top"></div>
+    <div class="cine-bar bottom"></div>
+    <div class="cine-inner">
+      <div class="cine-kicker"></div>
+      <div class="cine-stage">
+        <div class="cine-text"></div>
+        <div class="cine-seal">完</div>
+      </div>
+      <div class="cine-source"></div>
+      <div class="cine-after">
+        <p class="cine-reward"></p>
+        <div class="cine-keys"></div>
+        <button class="cine-next btn gold">つづける</button>
+      </div>
+    </div>
+  </div>
+
   <div id="modal" class="modal" hidden>
     <div class="modal-card">
       <div id="modalBody"></div>
-      <button id="modalOk" class="btn primary">つづける</button>
+      <button id="modalOk" class="btn gold">つづける</button>
     </div>
   </div>
 
   <div id="toasts" class="toasts"></div>
+  <canvas id="fxCanvas" class="fx-canvas" aria-hidden="true"></canvas>
 
+  <script src="js/icons.js"></script>
+  <script src="js/art.js"></script>
   <script src="js/data.js"></script>
   <script src="js/sound.js"></script>
+  <script src="js/fx.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>
