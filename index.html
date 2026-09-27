@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>無限の猿タイピスト</title>
+  <meta name="description" content="猿が無限にタイプしたらシェイクスピアも書けるのか？ 放置型タイピングゲーム">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@400;700&family=Special+Elite&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 class="logo">無限の猿<span>タイピスト</span></h1>
+    <div class="stats">
+      <div class="stat"><span class="stat-label">打鍵</span><span id="statKeys" class="stat-value">0</span></div>
+      <div class="stat"><span class="stat-label">毎秒</span><span id="statKps" class="stat-value">0</span></div>
+      <div class="stat"><span class="stat-label">1クリック</span><span id="statClick" class="stat-value">1</span></div>
+    </div>
+    <button id="muteBtn" class="icon-btn" title="音のオン／オフ">🔊</button>
+  </header>
+
+  <div id="strikeBanner" class="strike-banner" hidden>
+    ✊ 猿たちがストライキ中！（生産 ×0.5）
+    <button id="strikeBtn" class="btn">🍌 バナナで説得する</button>
+  </div>
+
+  <main class="layout">
+    <section class="desk" id="desk">
+      <div class="mission-head">
+        <div id="missionChapter" class="mission-chapter">第一章　日本編</div>
+        <div id="missionTitle" class="mission-title"></div>
+        <div id="missionSource" class="mission-source"></div>
+      </div>
+
+      <div class="paper" id="paper"></div>
+
+      <div class="odds" id="odds"></div>
+
+      <div class="stream-wrap">
+        <div class="stream-label">猿の打鍵ログ</div>
+        <div class="stream" id="stream"></div>
+      </div>
+
+      <div class="key-area">
+        <button id="typeKey" class="typekey" aria-label="打鍵する">
+          <span class="typekey-face">打</span>
+        </button>
+        <div class="key-hint">クリック／どのキーでも 1打鍵</div>
+      </div>
+
+      <div id="golden" class="golden" hidden title="金のバナナ！">🍌</div>
+    </section>
+
+    <aside class="side">
+      <nav class="tabs" id="tabs">
+        <button data-tab="monkeys" class="tab active">猿</button>
+        <button data-tab="research" class="tab">研究</button>
+        <button data-tab="ach" class="tab">実績</button>
+        <button data-tab="books" class="tab">書棚</button>
+        <button data-tab="roster" class="tab">名簿</button>
+        <button data-tab="settings" class="tab">設定</button>
+      </nav>
+      <div class="tab-panels">
+        <div class="panel active" data-panel="monkeys" id="panelMonkeys"></div>
+        <div class="panel" data-panel="research" id="panelResearch"></div>
+        <div class="panel" data-panel="ach" id="panelAch"></div>
+        <div class="panel" data-panel="books" id="panelBooks"></div>
+        <div class="panel" data-panel="roster" id="panelRoster"></div>
+        <div class="panel" data-panel="settings" id="panelSettings">
+          <h3>セーブ</h3>
+          <p class="muted">数秒ごとに自動保存しています。別の端末へ移すときは書き出した文字列を読み込んでください。</p>
+          <div class="btn-row">
+            <button id="exportBtn" class="btn">書き出し</button>
+            <button id="importBtn" class="btn">読み込み</button>
+          </div>
+          <textarea id="saveText" class="save-text" rows="4" placeholder="ここにセーブ文字列"></textarea>
+          <h3>その他</h3>
+          <div class="btn-row">
+            <button id="resetBtn" class="btn danger">最初からやり直す</button>
+          </div>
+          <p class="muted small">「猿が無限にタイプライターを叩けば、いつかシェイクスピアを書き上げる」——無限の猿定理より。</p>
+        </div>
+      </div>
+      <div class="log-wrap">
+        <div class="log-label">出来事</div>
+        <ul class="log" id="log"></ul>
+      </div>
+    </aside>
+  </main>
+
+  <div id="modal" class="modal" hidden>
+    <div class="modal-card">
+      <div id="modalBody"></div>
+      <button id="modalOk" class="btn primary">つづける</button>
+    </div>
+  </div>
+
+  <div id="toasts" class="toasts"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
