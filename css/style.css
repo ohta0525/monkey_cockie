@@ -301,7 +301,7 @@ body.on-fire .combo-big b { color: var(--red-2); -webkit-text-stroke-color: #ffd
   line-height: 1;
   color: #fff8ea;
   text-shadow: 0 0 40px rgba(243, 211, 138, 0.9), 0 0 120px rgba(216, 168, 74, 0.6), 0 6px 0 rgba(0, 0, 0, 0.6);
-  animation: slamIn 0.42s cubic-bezier(.12, .9, .25, 1.15) both;
+  animation: slamIn 0.42s cubic-bezier(.12, .9, .25, 1.15) backwards;
   transition: transform 0.3s cubic-bezier(.6, 0, .9, .5), opacity 0.3s;
   will-change: transform;
   position: relative;

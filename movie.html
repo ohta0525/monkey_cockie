@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>無限の猿タイピスト — Teaser</title>
+  <meta name="description" content="無限の猿タイピスト ティザー映像">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@400;700;900&family=Yuji+Syuku&family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/movie.css">
+</head>
+<body>
+  <div id="viewport">
+    <div id="frame">
+      <div id="cam">
+        <canvas id="rain" width="1920" height="1080"></canvas>
+        <div id="scenes"></div>
+      </div>
+      <canvas id="fx" width="1920" height="1080"></canvas>
+      <div id="flash"></div>
+      <div id="caption"><div class="cap-jp"></div><div class="cap-en"></div></div>
+      <div class="bar top"></div>
+      <div class="bar bottom"></div>
+      <div class="vignette"></div>
+      <div class="grain"></div>
+    </div>
+  </div>
+
+  <div id="start" class="overlay">
+    <div class="ov-inner">
+      <div class="ov-kicker">OFFICIAL TEASER</div>
+      <div class="ov-title">無限の猿タイピスト</div>
+      <button id="playBtn" class="play-btn" aria-label="再生"></button>
+      <div class="ov-note" id="loadNote">音が出ます　·　約30秒</div>
+    </div>
+  </div>
+
+  <div id="end" class="overlay" hidden>
+    <div class="ov-inner">
+      <button id="replayBtn" class="ov-btn"></button>
+      <a href="index.html" class="ov-btn gold" id="gameLink"></a>
+    </div>
+  </div>
+
+  <div id="progress"><div id="progressFill"></div></div>
+
+  <script src="js/icons.js"></script>
+  <script src="js/art.js"></script>
+  <script src="js/movie.js"></script>
+</body>
+</html>
