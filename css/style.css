@@ -648,6 +648,7 @@ svg.lu.extra-art { width: 18px; height: 18px; }
 .small { font-size: 12px; }
 
 .btn {
+  text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -844,3 +845,51 @@ body[data-chapter="en"] .kc { font-family: var(--font-serif); font-style: italic
 .travel-list b { color: var(--gold-2); font-family: var(--font-cine); }
 @keyframes travelIn { from { opacity: 0; transform: translate(-50%, 20px); } }
 .cine.horiz.brush .cine-text { font-family: var(--font-brush); font-style: normal; font-weight: 400; }
+
+/* ── わかりやすさ ── */
+.help-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 7px 14px;
+  color: var(--gold-2);
+  cursor: pointer;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+}
+.help-btn:hover { border-color: var(--gold); }
+.help-list { text-align: left; padding-left: 1.1em; margin: 8px 0 16px; font-size: 14px; line-height: 1.75; }
+.help-list li { margin-bottom: 4px; }
+.help-list b { color: var(--gold-2); font-weight: 700; }
+.panel-lead { font-size: 12px; color: var(--muted); margin: 10px 0 0; line-height: 1.6; }
+.item-sub b { color: var(--gold-2); font-family: var(--font-cine); font-weight: 600; }
+.flavor { opacity: 0.75; }
+.item.recommend { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(216, 168, 74, 0.35), 0 0 18px rgba(216, 168, 74, 0.18); }
+.rec-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #1a120a;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  vertical-align: 2px;
+}
+.tab { position: relative; }
+.tab.has-new::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: calc(50% - 16px);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold-2);
+  box-shadow: 0 0 8px var(--gold);
+}
+.btn-row.center { justify-content: center; }

@@ -19,10 +19,11 @@
       <span class="logo-text">無限の猿<small>タイピスト</small></span>
     </h1>
     <div class="stats">
-      <div class="stat"><span class="stat-label" data-icon="keyboard">打鍵</span><span id="statKeys" class="stat-value">0</span></div>
-      <div class="stat"><span class="stat-label" data-icon="zap">毎秒</span><span id="statKps" class="stat-value">0</span></div>
-      <div class="stat"><span class="stat-label" data-icon="pointer">一打</span><span id="statClick" class="stat-value">1</span></div>
+      <div class="stat"><span class="stat-label" data-icon="keyboard" title="いま持っている打鍵（お金の代わり）">打鍵</span><span id="statKeys" class="stat-value">0</span></div>
+      <div class="stat"><span class="stat-label" data-icon="zap" title="猿たちが1秒に打つ数">毎秒</span><span id="statKps" class="stat-value">0</span></div>
+      <div class="stat"><span class="stat-label" data-icon="pointer" title="1クリックで打てる数">1クリック</span><span id="statClick" class="stat-value">1</span></div>
     </div>
+    <button id="helpBtn" class="help-btn" title="遊び方"><span data-icon="book-open"></span>遊び方</button>
     <button id="muteBtn" class="icon-btn" title="音のオン／オフ"></button>
   </header>
 
@@ -50,14 +51,14 @@
         <div class="slam-layer" id="slamLayer"></div>
         <button id="golden" class="golden" title="金のバナナ" hidden></button>
         <div class="stage-hud">
-          <div class="gauge">
+          <div class="gauge" title="外れが続くと溜まる。満タンで次の1文字が必ず当たる">
             <span class="gauge-icon" data-icon="lightbulb"></span>
             <div class="gauge-body">
               <div class="gauge-label">ひらめき <span id="inspText"></span></div>
               <div class="bar"><div class="bar-fill insp" id="inspFill"></div></div>
             </div>
           </div>
-          <div class="gauge">
+          <div class="gauge" title="続けて文字を確定させると、打鍵の獲得量が増える">
             <span class="gauge-icon" data-icon="flame"></span>
             <div class="gauge-body">
               <div class="gauge-label" id="comboText"></div>
@@ -93,11 +94,11 @@
 
     <aside class="side">
       <nav class="tabs" id="tabs">
-        <button data-tab="monkeys" class="tab active"><span data-icon="users"></span>猿</button>
-        <button data-tab="research" class="tab"><span data-icon="flask-conical"></span>研究</button>
+        <button data-tab="monkeys" class="tab active"><span data-icon="users"></span>雇う</button>
+        <button data-tab="research" class="tab"><span data-icon="zap"></span>強化</button>
         <button data-tab="ach" class="tab"><span data-icon="trophy"></span>実績</button>
-        <button data-tab="books" class="tab"><span data-icon="library"></span>書棚</button>
-        <button data-tab="roster" class="tab"><span data-icon="scroll-text"></span>名簿</button>
+        <button data-tab="books" class="tab"><span data-icon="library"></span>作品</button>
+        <button data-tab="roster" class="tab"><span data-icon="scroll-text"></span>猿たち</button>
         <button data-tab="settings" class="tab"><span data-icon="settings"></span>設定</button>
       </nav>
       <div class="tab-panels">

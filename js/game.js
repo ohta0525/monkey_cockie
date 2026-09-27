@@ -27,7 +27,7 @@ function keyLabel(c) {
 }
 
 function costMul() {
-  return CHAPTERS[chapterIdx].costMul || 1;
+  return BASE_COST * (CHAPTERS[chapterIdx].costMul || 1);
 }
 
 function nextKeyPos(text, from) {
@@ -125,7 +125,7 @@ function eduWeight() {
 
 // ひらめきゲージの満タン回数はキーの数に比例する
 function inspMax() {
-  return Math.max(3, Math.round(S.keyboard.length * inspMaxAt(S.lv.insp) - 0.5 * traitSum('kichoumen')));
+  return Math.max(INSP_MIN, Math.round(S.keyboard.length * inspMaxAt(S.lv.insp) - 0.5 * traitSum('kichoumen')));
 }
 
 function hintCd() {
@@ -172,16 +172,15 @@ function stageOf(r) {
   return st;
 }
 
-function rosterKps(r) {
-  const idx = EVOLUTION.indexOf(stageOf(r));
-  const base = [0.125, 0.6, 3, 12][idx];
-  return base * 0.1 * (r.lv - (r.start || 1));
+// 名前つきの猿の成長は、全体の生産への倍率として効く（上げたレベル1つにつき +0.4%）
+function rosterMult() {
+  let lv = 0;
+  S.roster.forEach(r => { if (!isAsleep(r)) lv += r.lv - (r.start || 1); });
+  return 1 + 0.004 * lv;
 }
 
 function baseKps() {
-  let k = GENERATORS.reduce((sum, g) => sum + (S.gens[g.id] || 0) * g.kps * genMult(g), 0);
-  S.roster.forEach(r => { if (!isAsleep(r)) k += rosterKps(r); });
-  return k;
+  return GENERATORS.reduce((sum, g) => sum + (S.gens[g.id] || 0) * g.kps * genMult(g), 0);
 }
 
 function kps() {
@@ -189,7 +188,7 @@ function kps() {
   let m = achMult() * (1 + 0.04 * traitSum('hayauchi')) * (1 + 0.1 * traitSum('nebou'));
   if (now < ev.frenzyUntil) m *= 7;
   if (now < ev.strikeUntil) m *= 0.5;
-  return baseKps() * m * (S.fame || 1);
+  return baseKps() * m * rosterMult() * (S.fame || 1);
 }
 
 function clickPower() {
@@ -379,7 +378,12 @@ function completeMission() {
   S.lines = freshLines(S.missionIdx);
   const added = growKeyboard(S.missionIdx);
   log(`「${m.display.replace(/\n/g, ' ')}」が完成した。`, 'scroll-text');
-  const show = () => queueCine(m, no, added, chapterIdx);
+  const isEnding = !currentMission() && chapterIdx === CHAPTERS.length - 1;
+  if (isEnding) S.finished = true;
+  const show = () => {
+    queueCine(m, no, added, chapterIdx);
+    if (isEnding) queueEnding();
+  };
   if (fxEnabled) setTimeout(show, 900); else show();
   dirty.shop = dirty.keyboard = true;
 }
@@ -756,15 +760,13 @@ function renderPaper() {
 
   if (!m) {
     const hasNext = chapterIdx < CHAPTERS.length - 1;
-    $('missionTitle').textContent = hasNext ? '渡航準備完了' : '全編完結';
-    $('missionSource').textContent = hasNext
-      ? '猿たちはイギリス行きの船を待っている。'
-      : '第三章は準備中。打鍵は貯まり続ける。';
+    $('missionTitle').textContent = hasNext ? `${ch.name} 完` : '全編完結';
+    $('missionSource').textContent = hasNext ? `次の舞台へ —— ${nextChapter().travel.title}` : 'The rest is silence.';
     $('missionCount').innerHTML = '<b>完</b>';
-    $('paper').innerHTML = `<div class="pline"><span class="ptext"><span class="done">${esc(ch.name)}</span></span></div><div class="pline"><span class="ptext"><span class="done seal-inline">完</span></span></div>`;
+    $('paper').innerHTML = '';
     $('paper').classList.remove('horizontal');
-    $('travelBox').hidden = !hasNext;
-    if (hasNext) renderTravelBox();
+    $('travelBox').hidden = false;
+    if (hasNext) renderTravelBox(); else renderEndingBox();
     $('paper').style.setProperty('--cs', '72px');
     return;
   }
@@ -793,21 +795,59 @@ function renderPaper() {
 
 // ───────── 渡航 ─────────
 
+function nextChapter() {
+  return CHAPTERS[chapterIdx + 1];
+}
+
 function renderTravelBox() {
+  const next = nextChapter();
   const fame = fameFor(S.books.length);
   $('travelBox').innerHTML = `
-    <div class="kicker">NEXT — CHAPTER ${CHAPTERS[chapterIdx + 1].roman}</div>
-    <div class="travel-title">イギリスへ渡る</div>
+    <div class="kicker">NEXT — CHAPTER ${next.roman}</div>
+    <div class="travel-title">${esc(next.travel.title)}</div>
     <ul class="travel-list">
-      <li>${icon('users')}名前つきの猿 ${S.roster.length} 匹・実績・書棚は引き継ぐ</li>
-      <li>${icon('rotate-ccw')}打鍵・雇った猿・道具・研究はリセット</li>
-      <li>${icon('crown')}名声ボーナス：生産 <b>×${fame.toFixed(1)}</b>（作品 ${S.books.length} 作）</li>
+      <li>${icon('users')}名前つきの猿 ${S.roster.length} 匹・実績・作品は引き継ぐ</li>
+      <li>${icon('rotate-ccw')}打鍵・雇った猿・強化はリセット（最初からやり直し）</li>
+      <li>${icon('crown')}名声ボーナス：ずっと生産 <b>×${fame.toFixed(1)}</b>（作品 ${S.books.length} 作ぶん）</li>
     </ul>
-    <button class="btn gold" id="travelBtn">${icon('rocket')}出航する</button>`;
+    <button class="btn gold" id="travelBtn">${icon('rocket')}${esc(next.travel.button)}</button>`;
+}
+
+function playTime() {
+  return fmtDuration((Date.now() - S.startTime) / 1000);
+}
+
+function renderEndingBox() {
+  $('travelBox').innerHTML = `
+    <div class="kicker">FIN</div>
+    <div class="travel-title">全編完結</div>
+    <ul class="travel-list">
+      <li>${icon('keyboard')}通算 <b>${fmt(S.totalKeys)}</b> 打鍵</li>
+      <li>${icon('library')}完成させた作品 <b>${S.books.length}</b> 作</li>
+      <li>${icon('users')}名前つきの猿 <b>${S.roster.length}</b> 匹・実績 <b>${Object.keys(S.ach).length}</b> 個</li>
+      <li>${icon('clock')}プレイ時間 <b>${playTime()}</b></li>
+    </ul>
+    <div class="btn-row center">
+      <button class="btn" id="endingBtn">${icon('rotate-ccw')}エンディングをもう一度</button>
+      <a class="btn gold" href="movie.html">${icon('play')}ティザーを観る</a>
+    </div>`;
+}
+
+function queueEnding() {
+  queueOverlay(done => FX.cinematic({
+    kicker: 'FIN',
+    horizontal: true,
+    sealText: '猿',
+    display: 'The rest is silence.',
+    source: '無限の猿タイピスト',
+    reward: `通算 ${fmt(S.totalKeys)} 打鍵、${S.books.length} 作。無限の猿は、ついにシェイクスピアを書き上げた。——ご清聴ありがとうございました。`,
+    keysHtml: '',
+  }, done));
 }
 
 function travel() {
-  if (currentMission() || chapterIdx >= CHAPTERS.length - 1) return;
+  const next = nextChapter();
+  if (currentMission() || !next) return;
   S.fame = fameFor(S.books.length);
   S.chapter = chapterIdx + 1;
   applyChapter();
@@ -828,17 +868,16 @@ function travel() {
   Object.keys(dirty).forEach(k => { dirty[k] = true; });
   paperSig = '';
   keyboardSig = '';
-  log(`イギリスへ渡った。名声ボーナス ×${S.fame.toFixed(1)}`, 'rocket');
-  const c = CHAPTERS[chapterIdx];
+  log(`${next.travel.title}。名声ボーナス ×${S.fame.toFixed(1)}`, 'rocket');
   queueOverlay(done => FX.cinematic({
-    kicker: `CHAPTER ${c.roman}`,
+    kicker: `CHAPTER ${next.roman}`,
     horizontal: true,
-    sealText: '航',
+    sealText: next.travel.seal,
     brush: true,
-    display: c.name,
-    source: 'To be, or not to be.',
-    reward: `猿たちはロンドンに着いた。英字のタイプライターは、まだキーが少ない。名声ボーナスで生産 ×${S.fame.toFixed(1)}。`,
-    keysHtml: `<div class="newkeys"><span class="kicker">KEYS</span>${S.keyboard.map(k => `<span class="kc new">${esc(k)}</span>`).join('')}</div>`,
+    display: next.name,
+    source: next.travel.motto,
+    reward: `${next.travel.arrive}名声ボーナスで生産 ×${S.fame.toFixed(1)}。`,
+    keysHtml: `<div class="newkeys"><span class="kicker">KEYS</span>${S.keyboard.map(k => `<span class="kc new">${esc(keyLabel(k))}</span>`).join('')}</div>`,
   }, done));
   save();
   render();
@@ -945,12 +984,39 @@ function bubble(c, hit, fromClick) {
   setTimeout(() => { el.remove(); bubbleCount--; }, 900);
 }
 
-function itemHtml({ id, iconHtml, name, sub, cost, owned, action, disabled }) {
-  return `<button class="item" data-action="${action}" data-id="${id}" ${disabled ? 'disabled' : ''}>
+function itemHtml({ id, iconHtml, name, sub, cost, owned, action, disabled, rec }) {
+  return `<button class="item${rec ? ' recommend' : ''}" data-action="${action}" data-id="${id}" ${disabled ? 'disabled' : ''}>
     <span class="item-icon">${iconHtml}</span>
-    <span class="item-main"><span class="item-name">${esc(name)}</span><span class="item-sub">${sub}</span></span>
-    <span class="item-side">${owned !== undefined ? `<span class="item-owned">${owned}</span>` : ''}<span class="item-cost" data-cost="${cost}">${icon('keyboard', 'cost-ico')}${fmt(cost)}</span></span>
+    <span class="item-main"><span class="item-name">${esc(name)}${rec ? '<span class="rec-badge">おすすめ</span>' : ''}</span><span class="item-sub">${sub}</span></span>
+    <span class="item-side">${owned !== undefined ? `<span class="item-owned" title="持っている数">${owned}</span>` : ''}<span class="item-cost" data-cost="${cost}" title="必要な打鍵">${icon('keyboard', 'cost-ico')}${fmt(cost)}</span></span>
   </button>`;
+}
+
+// 研究の説明を「今 → 次」の具体的な数値で書く
+function oneIn(w) {
+  const n = S.keyboard.length;
+  return (n - 1 + w) / w;
+}
+
+function researchDesc(r) {
+  const lv = S.lv[r.id];
+  const trait = 0.15 * traitSum('shijin');
+  switch (r.id) {
+    case 'edu':
+      return `正しい文字が出る確率を上げる（今 1/${oneIn(1 + 0.5 * lv + trait).toFixed(1)} → 1/${oneIn(1 + 0.5 * (lv + 1) + trait).toFixed(1)}）`;
+    case 'insp': {
+      const next = Math.max(INSP_MIN, Math.round(S.keyboard.length * inspMaxAt(lv + 1) - 0.5 * traitSum('kichoumen')));
+      return `外れが続いたとき、次の1文字が必ず当たるまでの回数を減らす（今 ${inspMax()}回 → ${next}回）`;
+    }
+    case 'hint':
+      return `ヒントボタンの待ち時間を短くする（${hintCdAt(lv)}秒 → ${hintCdAt(lv + 1)}秒）`;
+    case 'team':
+      return `何行もある作品を、猿チームで同時に打つ（${lv + 1}行 → ${lv + 2}行）`;
+    case 'away':
+      return `画面を閉じている間も猿は打つ。その効率を上げる（${50 + 10 * lv}% → ${50 + 10 * (lv + 1)}%、最大 ${2 + 2 * lv} → ${4 + 2 * lv}時間）`;
+    default:
+      return '';
+  }
 }
 
 function visibleGens() {
@@ -977,56 +1043,73 @@ function renderShop() {
   const tiers = availableTiers();
   const ups = UPGRADES.filter(u => !S.ups[u.id] && u.cond(S));
   const res = RESEARCH.filter(r => r.cond(S));
-  const sig = [S.missionIdx, gens.map(g => g.id + (S.gens[g.id] || 0)), tiers.map(t => t.g.id + t.ti), ups.map(u => u.id), res.map(r => r.id + S.lv[r.id])].join('|');
+  const locked = S.chapter === 0 && S.missionIdx < 1;
+  const sig = [S.chapter, S.missionIdx, S.keyboard.length, gens.map(g => g.id + (S.gens[g.id] || 0)), tiers.map(t => t.g.id + t.ti), ups.map(u => u.id), res.map(r => r.id + S.lv[r.id])].join('|');
   if (sig !== shopSig || dirty.shop) {
     shopSig = sig;
     dirty.shop = false;
 
+    // いちばん安く買えるものを「おすすめ」にする
+    const cands = [];
+    if (!locked) {
+      gens.forEach(g => cands.push(['gen:' + g.id, genCost(g)]));
+      tiers.forEach(({ g, t, ti }) => cands.push([`tier:${g.id}:${ti}`, g.cost * costMul() * t.costMul]));
+    }
+    ups.forEach(u => cands.push(['up:' + u.id, u.cost * costMul()]));
+    res.filter(r => S.lv[r.id] < r.max).forEach(r => cands.push(['res:' + r.id, researchCost(r)]));
+    cands.sort((a, b) => a[1] - b[1]);
+    const rec = cands.length ? cands[0][0] : '';
+
     let mh = '';
-    if (S.missionIdx < 1) {
-      mh = lockedHtml('まずは自分の手で「こんにちは」を打ち上げよう。<br>完成すると最初の猿が仲間になり、自動で打鍵してくれる。', headSvg('kozaru', 'locked-art'));
+    if (locked) {
+      mh = lockedHtml('まずは自分の手で「こんにちは」を打ち上げよう。<br>完成すると最初の猿が仲間になり、自動で打ってくれる。', headSvg('kozaru', 'locked-art'));
     } else {
-      if (tiers.length) {
-        mh += '<h3>特訓</h3>' + tiers.map(({ g, t, ti }) => itemHtml({
-          id: g.id + ':' + ti, iconHtml: art(g.art), name: `${g.name}の${t.name}`, sub: `${g.name}の生産 ×2`,
-          cost: g.cost * costMul() * t.costMul, action: 'tier',
-        })).join('');
-      }
+      mh += '<p class="panel-lead">雇った猿は自動で打ってくれる。打った数（打鍵）がお金の代わり。</p>';
       mh += '<h3>猿を雇う</h3>' + gens.map(g => {
-        const each = g.kps * genMult(g) * achMult();
+        const each = g.kps * genMult(g) * achMult() * (S.fame || 1);
         return itemHtml({
-          id: g.id, iconHtml: art(g.art), name: g.name, sub: `${esc(g.desc)}<br>1体 毎秒 ${fmtRate(each)} 打鍵`,
-          cost: genCost(g), owned: S.gens[g.id] || 0, action: 'gen',
+          id: g.id, iconHtml: art(g.art), name: g.name, sub: `1匹で 毎秒 <b>${fmtRate(each)}</b> 打鍵<br><span class="flavor">${esc(g.desc)}</span>`,
+          cost: genCost(g), owned: S.gens[g.id] || 0, action: 'gen', rec: rec === 'gen:' + g.id,
         });
       }).join('');
-      if (GENERATORS[gens.length]) mh += '<div class="locked small">？？？ — もっと打鍵を貯めると……</div>';
+      if (GENERATORS[gens.length]) mh += '<div class="locked small">？？？ — もっと打鍵を貯めると、新しい仲間が現れる</div>';
+      if (tiers.length) {
+        mh += '<h3>まとめて強化</h3>' + tiers.map(({ g, t, ti }) => itemHtml({
+          id: g.id + ':' + ti, iconHtml: art(g.art), name: `${g.name}の${t.name}`, sub: `${g.name}を${t.need}匹そろえた記念。${g.name}の打つ速さが2倍`,
+          cost: g.cost * costMul() * t.costMul, action: 'tier', rec: rec === `tier:${g.id}:${ti}`,
+        })).join('');
+      }
     }
     $('panelMonkeys').innerHTML = mh;
 
     let rh = '';
     if (ups.length) {
-      rh += '<h3>道具</h3>' + ups.map(u => itemHtml({ id: u.id, iconHtml: icon(u.icon), name: u.name, sub: u.desc, cost: u.cost * costMul(), action: 'up' })).join('');
+      rh += '<h3>クリックを強くする</h3>' + ups.map(u => itemHtml({ id: u.id, iconHtml: icon(u.icon), name: u.name, sub: u.desc, cost: u.cost * costMul(), action: 'up', rec: rec === 'up:' + u.id })).join('');
     }
     if (res.length) {
-      rh += '<h3>研究</h3>' + res.map(r => {
+      rh += '<h3>猿たちを賢くする</h3>' + res.map(r => {
         const maxed = S.lv[r.id] >= r.max;
         return itemHtml({
-          id: r.id, iconHtml: icon(r.icon), name: `${r.name} Lv${S.lv[r.id]}${maxed ? '（最大）' : ''}`,
-          sub: maxed ? '研究しつくした' : r.desc(S.lv[r.id]), cost: maxed ? Infinity : researchCost(r), action: 'res', disabled: maxed,
+          id: r.id, iconHtml: icon(r.icon), name: `${r.name}　Lv${S.lv[r.id]}${maxed ? '（最大）' : ''}`,
+          sub: maxed ? 'これ以上は強化できない' : researchDesc(r), cost: maxed ? Infinity : researchCost(r), action: 'res', disabled: maxed, rec: rec === 'res:' + r.id,
         });
       }).join('');
     }
     const owned = UPGRADES.filter(u => S.ups[u.id]);
-    if (owned.length) rh += `<h3>導入済み</h3><p class="muted small">${owned.map(u => u.name).join('・')}</p>`;
-    if (!rh) rh = lockedHtml('まだ研究できるものはない。');
+    if (owned.length) rh += `<h3>買ったもの</h3><p class="muted small">${owned.map(u => u.name).join('・')}</p>`;
+    if (!rh) rh = lockedHtml('まだ強化できるものはない。作品を完成させると増えていく。');
     $('panelResearch').innerHTML = rh;
   }
+  const panelHas = {};
   document.querySelectorAll('.side .item').forEach(el => {
     const cost = parseFloat(el.querySelector('.item-cost').dataset.cost);
     const can = S.keys >= cost;
     el.classList.toggle('affordable', can);
     el.disabled = !can || !isFinite(cost);
+    if (can) panelHas[el.closest('.panel').dataset.panel] = true;
   });
+  // 買えるものがあるタブに印をつける
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('has-new', !!panelHas[t.dataset.tab] && !t.classList.contains('active')));
 }
 
 function renderAch() {
@@ -1218,7 +1301,10 @@ function bindUI() {
   $('golden').innerHTML = icon('banana');
 
   $('typeKey').addEventListener('click', doClick);
-  $('travelBox').addEventListener('click', e => { if (e.target.closest('#travelBtn')) travel(); });
+  $('travelBox').addEventListener('click', e => {
+    if (e.target.closest('#travelBtn')) travel();
+    if (e.target.closest('#endingBtn')) queueEnding();
+  });
   $('hintBtn').addEventListener('click', () => { Sound.ensure(); useHint(); render(); });
   document.addEventListener('keydown', e => {
     if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -1275,6 +1361,7 @@ function bindUI() {
   $('strikeBtn').addEventListener('click', settleStrike);
   $('modalOk').addEventListener('click', closeModal);
 
+  $('helpBtn').addEventListener('click', showHelp);
   $('muteBtn').addEventListener('click', () => {
     S.muted = Sound.muted = !S.muted;
     updateMuteBtn();
@@ -1314,6 +1401,26 @@ function bindUI() {
   window.addEventListener('beforeunload', save);
 }
 
+const helpHtml = () => `
+  <div class="modal-icon">${icon('book-open')}</div>
+  <div class="kicker">HOW TO PLAY</div>
+  <h2>遊び方</h2>
+  <ul class="help-list">
+    <li><b>「打」を押す</b>（どのキーでもOK）と、猿のタイプライターからランダムな文字が1つ出る。</li>
+    <li>光っている枠の文字が出たら、原稿に1文字確定。全部そろえば作品の完成。</li>
+    <li>打った数が<b>「打鍵」</b>。お金の代わりに、猿を雇ったり強化したりできる。</li>
+    <li><b>雇った猿</b>は自動で打ってくれる。画面を閉じていても少しずつ打つ。</li>
+    <li><b>ひらめき</b>：外れが続くとゲージが溜まり、満タンで次の1文字が必ず当たる。</li>
+    <li><b>コンボ</b>：続けて確定すると、打鍵の獲得量が増える。</li>
+    <li><b>ヒント</b>：ボタンを押すと次の1文字がすぐ確定（待ち時間あり）。</li>
+    <li>迷ったら、右側の<b>「おすすめ」</b>を買えばOK。</li>
+  </ul>`;
+
+function showHelp() {
+  queueModal(helpHtml());
+  S.seenHelp = true;
+}
+
 function updateMuteBtn() {
   $('muteBtn').innerHTML = icon(S.muted ? 'volume-x' : 'volume-2');
 }
@@ -1326,6 +1433,7 @@ function init() {
   FX.init();
   updateMuteBtn();
   applyOffline();
+  if (!S.seenHelp && S.totalKeys === 0) showHelp();
   if (S.totalKeys === 0) {
     log('無限の猿がタイプライターを叩けば、いつかシェイクスピアを書き上げる——らしい。', 'infinity');
     log('まずは自分の手で打ってみよう。', 'pointer');
