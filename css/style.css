@@ -17,6 +17,7 @@
   --font-jp: 'Zen Old Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
   --font-brush: 'Yuji Syuku', 'Zen Old Mincho', serif;
   --font-cine: 'Cinzel', 'Times New Roman', serif;
+  --font-serif: 'Cormorant Garamond', 'Times New Roman', serif;
 }
 
 * { box-sizing: border-box; }
@@ -794,3 +795,52 @@ svg.lu.extra-art { width: 18px; height: 18px; }
 @media (prefers-reduced-motion: reduce) {
   .grain, .typist .t-head, .typist .t-arm-l, .typist .t-arm-r, .golden { animation: none; }
 }
+
+/* ── 第二章 英国編：横書きの英文 ── */
+.manuscript.horizontal {
+  writing-mode: horizontal-tb;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(var(--cs) * 0.3);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 600;
+}
+.horizontal .pline { flex-direction: row; align-items: center; gap: calc(var(--cs) * 0.25); }
+.horizontal .ptext { flex-direction: row; gap: 0; }
+.horizontal .ptext span { width: auto; height: auto; line-height: 1.15; }
+.horizontal .sp { width: 0.28em; }
+.horizontal .cursor { padding: 0 0.04em; }
+body[data-chapter="en"] .slam-char { font-family: var(--font-serif); font-style: italic; font-weight: 600; }
+body[data-chapter="en"] .kc { font-family: var(--font-serif); font-style: italic; font-size: 17px; }
+
+.cine.horiz .cine-text { writing-mode: horizontal-tb; flex-direction: column; align-items: center; gap: 0.1em; font-family: var(--font-serif); font-style: italic; font-weight: 600; line-height: 1.2; }
+.cine.horiz .cine-col { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+.cine.horiz .cc { display: inline-block; margin: 0 0.14em; }
+.cine.horiz .cine-seal { left: auto; right: -1.7em; bottom: -0.2em; }
+
+/* 渡航パネル */
+.travel-box {
+  position: absolute;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%);
+  z-index: 6;
+  width: min(460px, calc(100% - 32px));
+  padding: 18px 20px 20px;
+  border-radius: 14px;
+  border: 1px solid var(--line-strong);
+  background: rgba(10, 8, 7, 0.88);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(216, 168, 74, 0.15);
+  text-align: center;
+  animation: travelIn 0.6s cubic-bezier(.2, .9, .3, 1);
+}
+.travel-box[hidden] { display: none; }
+.travel-title { font-family: var(--font-brush); font-size: 34px; margin: 4px 0 8px; color: var(--gold-2); }
+.travel-list { list-style: none; padding: 0; margin: 0 0 14px; text-align: left; font-size: 13px; color: var(--muted); }
+.travel-list li { display: flex; gap: 8px; align-items: center; padding: 4px 0; }
+.travel-list .lu { color: var(--gold); }
+.travel-list b { color: var(--gold-2); font-family: var(--font-cine); }
+@keyframes travelIn { from { opacity: 0; transform: translate(-50%, 20px); } }
+.cine.horiz.brush .cine-text { font-family: var(--font-brush); font-style: normal; font-weight: 400; }

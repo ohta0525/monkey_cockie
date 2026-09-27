@@ -183,19 +183,26 @@ const FX = {
   },
 
   // ── 作品完成のシネマティック ──
-  cinematic({ kicker, display, source, reward, keysHtml }, onDone) {
+  cinematic({ kicker, display, source, reward, keysHtml, horizontal, sealText, brush }, onDone) {
     const cine = document.getElementById('cine');
     const text = cine.querySelector('.cine-text');
     const seal = cine.querySelector('.cine-seal');
     cine.querySelector('.cine-kicker').textContent = kicker;
+    seal.textContent = sealText || '完';
     cine.querySelector('.cine-source').textContent = source ? `— ${source}` : '';
     cine.querySelector('.cine-reward').textContent = reward || '';
     cine.querySelector('.cine-keys').innerHTML = keysHtml || '';
     const lines = display.split('\n');
     const longest = Math.max(...lines.map(l => l.length));
-    const size = Math.min(innerHeight * 0.46 / longest, innerWidth * 0.62 / (lines.length * 1.4), 120);
+    cine.classList.toggle('horiz', !!horizontal);
+    cine.classList.toggle('brush', !!brush);
+    // 横書き（英文）は単語ごと、縦書きは1文字ずつ現れる
+    const size = horizontal
+      ? Math.min(innerWidth * 0.84 / (longest * 0.48), innerHeight * 0.42 / (lines.length * 1.25), 110)
+      : Math.min(innerHeight * 0.46 / longest, innerWidth * 0.62 / (lines.length * 1.4), 120);
     text.style.fontSize = size + 'px';
-    text.innerHTML = lines.map(l => `<div class="cine-col">${[...l].map(c => `<span class="cc">${c}</span>`).join('')}</div>`).join('');
+    const units = l => (horizontal ? l.split(' ') : [...l]);
+    text.innerHTML = lines.map(l => `<div class="cine-col">${units(l).map(c => `<span class="cc">${c}</span>`).join(horizontal ? ' ' : '')}</div>`).join('');
     cine.classList.remove('done', 'sealed');
     cine.hidden = false;
     void cine.offsetWidth;

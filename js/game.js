@@ -10,15 +10,47 @@ const MEISAKU_MAX = 40;
 
 // ───────── 状態 ─────────
 
+// 章ごとの状態。英国編では大文字・句読点・空白もすべてキーとして打つ。
+let chapterIdx = 0;
+
+function isKey(c) {
+  return c !== undefined;
+}
+
+function keyOf(c) {
+  return c;
+}
+
+// 空白キーは見えるように表示する
+function keyLabel(c) {
+  return c === ' ' ? '␣' : c;
+}
+
+function costMul() {
+  return CHAPTERS[chapterIdx].costMul || 1;
+}
+
+function nextKeyPos(text, from) {
+  let p = from;
+  while (p < text.length && !isKey(text[p])) p++;
+  return p;
+}
+
 function freshLines(idx) {
   const m = MISSIONS[idx];
-  return m ? m.lines.map(() => ({ pos: 0, insp: 0 })) : [];
+  return m ? m.lines.map(l => ({ pos: nextKeyPos(l, 0), insp: 0 })) : [];
+}
+
+function applyChapter() {
+  chapterIdx = S.chapter || 0;
+  setChapter(chapterIdx);
+  document.body.dataset.chapter = CHAPTERS[chapterIdx].id;
 }
 
 function newState() {
   const now = Date.now();
   return {
-    v: 2, keys: 0, totalKeys: 0, clicks: 0,
+    v: 2, keys: 0, totalKeys: 0, clicks: 0, chapter: 0, fame: 1,
     missionIdx: 0, lines: freshLines(0), keyboard: [],
     gens: {}, ups: {}, tiers: {},
     lv: { edu: 0, insp: 0, hint: 0, team: 0, away: 0 },
@@ -47,7 +79,9 @@ function growKeyboard(idx) {
   const m = MISSIONS[idx];
   if (!m) return [];
   const added = [];
-  for (const c of m.lines.join('')) {
+  for (const raw of m.lines.join('')) {
+    if (!isKey(raw)) continue;
+    const c = keyOf(raw);
     if (!S.keyboard.includes(c)) { S.keyboard.push(c); added.push(c); }
   }
   let d = m.decoys;
@@ -155,7 +189,7 @@ function kps() {
   let m = achMult() * (1 + 0.04 * traitSum('hayauchi')) * (1 + 0.1 * traitSum('nebou'));
   if (now < ev.frenzyUntil) m *= 7;
   if (now < ev.strikeUntil) m *= 0.5;
-  return baseKps() * m;
+  return baseKps() * m * (S.fame || 1);
 }
 
 function clickPower() {
@@ -200,13 +234,13 @@ function activeLines() {
 
 function currentTarget(li) {
   if (li === undefined || lineDone(li)) return null;
-  return lineText(li)[S.lines[li].pos];
+  return keyOf(lineText(li)[S.lines[li].pos]);
 }
 
 function typeOne(li, visual, fromClick) {
   const line = S.lines[li];
   const text = lineText(li);
-  const target = text[line.pos];
+  const target = keyOf(text[line.pos]);
   const c = genChar(target);
   const hit = c === target;
   if (visual) pushStream(c, hit, fromClick);
@@ -214,7 +248,7 @@ function typeOne(li, visual, fromClick) {
     confirmChar(li, 'hit');
     return;
   }
-  if (line.pos === text.length - 1 && line.pos > 0) recordMeisaku(text.slice(0, line.pos) + c, text);
+  if (line.pos > 0 && nextKeyPos(text, line.pos + 1) >= text.length) recordMeisaku(text.slice(0, line.pos) + c, text);
   line.insp++;
   if (line.insp >= inspMax()) {
     S.inspUses++;
@@ -299,15 +333,17 @@ function addKeystrokes(K, fromClick, visual, dt) {
 
 function confirmChar(li, how) {
   const line = S.lines[li];
-  const ch = lineText(li)[line.pos];
-  line.pos++;
+  const text = lineText(li);
+  const at = line.pos;
+  const ch = text[at];
+  line.pos = nextKeyPos(text, at + 1);
   line.insp = 0;
   const now = performance.now();
   ev.combo++;
   ev.comboUntil = now + (COMBO_WINDOW + 0.4 * traitSum('medachi')) * 1000;
   if (ev.combo > S.bestCombo) S.bestCombo = ev.combo;
   // 演出は描画のタイミングでまとめて出す（同じtick内なら最後の1文字だけ）
-  ev.pendingFx = { ch, li, pos: line.pos - 1, how, combo: ev.combo, mi: S.missionIdx };
+  ev.pendingFx = { ch, li, pos: at, how, combo: ev.combo, mi: S.missionIdx };
   if (S.lines.every((_, i) => lineDone(i))) completeMission();
 }
 
@@ -315,6 +351,7 @@ function flushFx() {
   const f = ev.pendingFx;
   ev.pendingFx = null;
   if (!f || !fxEnabled) return;
+  if (f.ch === ' ') f.ch = '␣';
   const find = () => (S.missionIdx === f.mi ? document.querySelector(`[data-k="${f.li}-${f.pos}"]`) : null);
   FX.confirm(esc(f.ch), f.how, f.combo, find);
 }
@@ -325,7 +362,7 @@ function useHint() {
   ev.hintReadyAt = performance.now() + hintCd() * 1000;
   S.hintUses++;
   const who = randomMonkeyName();
-  log(`${who ? who + 'に' : ''}「${currentTarget(li)}」を教えた。`, 'notebook-pen');
+  log(`${who ? who + 'に' : ''}「${keyLabel(currentTarget(li))}」を教えた。`, 'notebook-pen');
   confirmChar(li, 'hint');
 }
 
@@ -342,7 +379,7 @@ function completeMission() {
   S.lines = freshLines(S.missionIdx);
   const added = growKeyboard(S.missionIdx);
   log(`「${m.display.replace(/\n/g, ' ')}」が完成した。`, 'scroll-text');
-  const show = () => queueCine(m, no, added);
+  const show = () => queueCine(m, no, added, chapterIdx);
   if (fxEnabled) setTimeout(show, 900); else show();
   dirty.shop = dirty.keyboard = true;
 }
@@ -455,11 +492,11 @@ function updateRoster(dt) {
 // ───────── 購入 ─────────
 
 function genCost(g) {
-  return g.cost * Math.pow(GEN_GROWTH, S.gens[g.id] || 0);
+  return g.cost * costMul() * Math.pow(GEN_GROWTH, S.gens[g.id] || 0);
 }
 
 function researchCost(r) {
-  return r.base * Math.pow(r.growth, S.lv[r.id]);
+  return r.base * costMul() * Math.pow(r.growth, S.lv[r.id]);
 }
 
 function spend(cost) {
@@ -480,14 +517,14 @@ function buyGen(id) {
 
 function buyTier(genId, ti) {
   const g = GENERATORS.find(x => x.id === genId);
-  if (!spend(g.cost * GEN_TIERS[ti].costMul)) return;
+  if (!spend(g.cost * costMul() * GEN_TIERS[ti].costMul)) return;
   S.tiers[genId + '_' + ti] = true;
   log(`${g.name}の${GEN_TIERS[ti].name}完了。生産 ×2`, 'medal');
 }
 
 function buyUpgrade(id) {
   const u = UPGRADES.find(x => x.id === id);
-  if (!spend(u.cost)) return;
+  if (!spend(u.cost * costMul())) return;
   S.ups[id] = true;
   log(`「${u.name}」を導入した。`, 'wrench');
 }
@@ -605,6 +642,8 @@ function save() {
 function loadFrom(data) {
   const s = Object.assign(newState(), data);
   s.lv = Object.assign(newState().lv, data.lv || {});
+  S = s;
+  applyChapter();
   const m = MISSIONS[s.missionIdx];
   if (!Array.isArray(s.lines) || (m && s.lines.length !== m.lines.length)) s.lines = freshLines(s.missionIdx);
   S = s;
@@ -617,6 +656,7 @@ function load() {
   if (raw) {
     try { loadFrom(JSON.parse(raw)); } catch (e) { console.warn('セーブデータを読み込めませんでした', e); }
   }
+  applyChapter();
   if (!S.keyboard.length) growKeyboard(S.missionIdx);
   ev.newKeys = {};
 }
@@ -682,37 +722,54 @@ function renderStats() {
 }
 
 // 縦書き原稿の文字サイズを舞台の大きさに合わせる
+function chapterLabel() {
+  const c = CHAPTERS[chapterIdx];
+  return `CHAPTER ${c.roman} — ${c.name}`;
+}
+
+// 原稿の文字サイズを舞台の大きさに合わせる（日本編は縦書き、英国編は横書き）
 function layoutManuscript() {
   const wrap = document.querySelector('.manuscript-wrap');
   const m = currentMission();
   if (!wrap) return;
-  const lines = m ? m.lines : ['日本編完'];
+  const vertical = CHAPTERS[chapterIdx].vertical;
+  const lines = m ? m.lines : ['完'];
   const longest = Math.max(...lines.map(l => l.length)) + 1;
   const h = wrap.clientHeight;
   const w = wrap.clientWidth;
-  const cs = Math.max(18, Math.min(h * 0.92 / longest, w * 0.86 / (lines.length * 1.5), 120));
+  const cs = vertical
+    ? Math.max(18, Math.min(h * 0.92 / longest, w * 0.86 / (lines.length * 1.5), 120))
+    : Math.max(16, Math.min(h * 0.85 / (lines.length * 1.45), w * 0.94 / (longest * 0.5), 104));
   $('paper').style.setProperty('--cs', cs + 'px');
+  $('paper').classList.toggle('horizontal', !vertical);
 }
 
 function renderPaper() {
   const m = currentMission();
   const act = activeLines();
-  const sig = S.missionIdx + '|' + S.lines.map(l => l.pos).join(',') + '|' + act.join(',');
+  const sig = chapterIdx + ':' + S.missionIdx + '|' + S.lines.map(l => l.pos).join(',') + '|' + act.join(',');
   if (sig === paperSig) return;
-  const missionChanged = !paperSig.startsWith(S.missionIdx + '|');
+  const missionChanged = !paperSig.startsWith(chapterIdx + ':' + S.missionIdx + '|');
   paperSig = sig;
+  const ch = CHAPTERS[chapterIdx];
+  $('missionChapter').textContent = chapterLabel();
 
   if (!m) {
-    $('missionChapter').textContent = 'CHAPTER I — 日本編';
-    $('missionTitle').textContent = '渡航準備中';
-    $('missionSource').textContent = '第二章「英語編 — To be, or not to be」は準備中。打鍵は貯まり続ける。';
+    const hasNext = chapterIdx < CHAPTERS.length - 1;
+    $('missionTitle').textContent = hasNext ? '渡航準備完了' : '全編完結';
+    $('missionSource').textContent = hasNext
+      ? '猿たちはイギリス行きの船を待っている。'
+      : '第三章は準備中。打鍵は貯まり続ける。';
     $('missionCount').innerHTML = '<b>完</b>';
-    $('paper').innerHTML = '<div class="pline"><span class="ptext"><span class="done">日本編</span></span></div><div class="pline"><span class="ptext"><span class="done seal-inline">完</span></span></div>';
-    layoutManuscript();
+    $('paper').innerHTML = `<div class="pline"><span class="ptext"><span class="done">${esc(ch.name)}</span></span></div><div class="pline"><span class="ptext"><span class="done seal-inline">完</span></span></div>`;
+    $('paper').classList.remove('horizontal');
+    $('travelBox').hidden = !hasNext;
+    if (hasNext) renderTravelBox();
+    $('paper').style.setProperty('--cs', '72px');
     return;
   }
+  $('travelBox').hidden = true;
 
-  $('missionChapter').textContent = 'CHAPTER I — 日本編';
   $('missionTitle').textContent = m.title;
   $('missionSource').textContent = m.source || '';
   $('missionCount').innerHTML = `<b>${pad2(S.missionIdx + 1)}</b><span>/ ${pad2(MISSIONS.length)}</span>`;
@@ -723,13 +780,69 @@ function renderPaper() {
     const active = act.includes(li);
     const body = [...text].map((c, k) => {
       const key = `data-k="${li}-${k}"`;
-      if (k < line.pos) return `<span class="done" ${key}>${esc(c)}</span>`;
-      if (k === line.pos && active) return `<span class="cursor" ${key}>${esc(c)}</span>`;
-      return `<span class="todo" ${key}>${esc(c)}</span>`;
+      const sp = c === ' ' ? ' sp' : '';
+      const shown = sp ? '\u00a0' : esc(c);
+      if (k < line.pos) return `<span class="done${sp}" ${key}>${shown}</span>`;
+      if (k === line.pos && active) return `<span class="cursor${sp}" ${key}>${shown}</span>`;
+      return `<span class="todo${sp}" ${key}>${shown}</span>`;
     }).join('');
     return `<div class="pline${done ? ' is-done' : ''}${active ? ' is-active' : ''}"><span class="pmark"></span><span class="ptext">${body}</span></div>`;
   }).join('');
   if (missionChanged) layoutManuscript();
+}
+
+// ───────── 渡航 ─────────
+
+function renderTravelBox() {
+  const fame = fameFor(S.books.length);
+  $('travelBox').innerHTML = `
+    <div class="kicker">NEXT — CHAPTER ${CHAPTERS[chapterIdx + 1].roman}</div>
+    <div class="travel-title">イギリスへ渡る</div>
+    <ul class="travel-list">
+      <li>${icon('users')}名前つきの猿 ${S.roster.length} 匹・実績・書棚は引き継ぐ</li>
+      <li>${icon('rotate-ccw')}打鍵・雇った猿・道具・研究はリセット</li>
+      <li>${icon('crown')}名声ボーナス：生産 <b>×${fame.toFixed(1)}</b>（作品 ${S.books.length} 作）</li>
+    </ul>
+    <button class="btn gold" id="travelBtn">${icon('rocket')}出航する</button>`;
+}
+
+function travel() {
+  if (currentMission() || chapterIdx >= CHAPTERS.length - 1) return;
+  S.fame = fameFor(S.books.length);
+  S.chapter = chapterIdx + 1;
+  applyChapter();
+  S.missionIdx = 0;
+  S.keyboard = [];
+  S.lines = freshLines(0);
+  S.keys = 0;
+  S.keyFrac = 0;
+  S.gens = { kozaru: 1 };
+  S.tiers = {};
+  S.ups = {};
+  S.lv = Object.assign(newState().lv, { away: S.lv.away });
+  growKeyboard(0);
+  ev.combo = 0;
+  ev.hintReadyAt = 0;
+  stream.items = [];
+  stream.buf = '';
+  Object.keys(dirty).forEach(k => { dirty[k] = true; });
+  paperSig = '';
+  keyboardSig = '';
+  log(`イギリスへ渡った。名声ボーナス ×${S.fame.toFixed(1)}`, 'rocket');
+  const c = CHAPTERS[chapterIdx];
+  queueOverlay(done => FX.cinematic({
+    kicker: `CHAPTER ${c.roman}`,
+    horizontal: true,
+    sealText: '航',
+    brush: true,
+    display: c.name,
+    source: 'To be, or not to be.',
+    reward: `猿たちはロンドンに着いた。英字のタイプライターは、まだキーが少ない。名声ボーナスで生産 ×${S.fame.toFixed(1)}。`,
+    keysHtml: `<div class="newkeys"><span class="kicker">KEYS</span>${S.keyboard.map(k => `<span class="kc new">${esc(k)}</span>`).join('')}</div>`,
+  }, done));
+  save();
+  render();
+  layoutManuscript();
 }
 
 function renderGauges() {
@@ -758,7 +871,7 @@ function renderGauges() {
 
   const wait = Math.max(0, ev.hintReadyAt - performance.now()) / 1000;
   $('hintBtn').disabled = wait > 0 || li === undefined;
-  $('hintText').textContent = wait > 0 ? `あと ${Math.ceil(wait)} 秒` : li === undefined ? '—' : `「${currentTarget(li)}」を教える`;
+  $('hintText').textContent = wait > 0 ? `あと ${Math.ceil(wait)} 秒` : li === undefined ? '—' : `「${keyLabel(currentTarget(li))}」を教える`;
 
   $('odds').textContent = `KEYS ${S.keyboard.length}　·　1/${(1 / pHit()).toFixed(1)}`;
 }
@@ -772,12 +885,12 @@ function renderKeyboard() {
   const now = performance.now();
   $('keyboard').innerHTML = S.keyboard.map(c => {
     const isNew = ev.newKeys[c] && now - ev.newKeys[c] < 8000;
-    return `<span class="kc${c === t ? ' target' : ''}${isNew ? ' new' : ''}">${esc(c)}</span>`;
+    return `<span class="kc${c === t ? ' target' : ''}${isNew ? ' new' : ''}${c === ' ' ? ' space' : ''}">${esc(keyLabel(c))}</span>`;
   }).join('');
 }
 
 function renderStream() {
-  $('stream').innerHTML = stream.items.map(it => `<span class="${it.hit ? 'hit' : ''}">${esc(it.c)}</span>`).join('');
+  $('stream').innerHTML = stream.items.map(it => `<span class="${it.hit ? 'hit' : ''}">${esc(it.c === ' ' ? '·' : it.c)}</span>`).join('');
 }
 
 function renderRoom() {
@@ -825,7 +938,7 @@ function bubble(c, hit, fromClick) {
   }
   const el = document.createElement('span');
   el.className = 'bubble' + (hit ? ' hit' : '');
-  el.textContent = c;
+  el.textContent = keyLabel(c);
   el.style.setProperty('--x', (Math.random() * 40 - 20) + 'px');
   host.appendChild(el);
   bubbleCount++;
@@ -876,7 +989,7 @@ function renderShop() {
       if (tiers.length) {
         mh += '<h3>特訓</h3>' + tiers.map(({ g, t, ti }) => itemHtml({
           id: g.id + ':' + ti, iconHtml: art(g.art), name: `${g.name}の${t.name}`, sub: `${g.name}の生産 ×2`,
-          cost: g.cost * t.costMul, action: 'tier',
+          cost: g.cost * costMul() * t.costMul, action: 'tier',
         })).join('');
       }
       mh += '<h3>猿を雇う</h3>' + gens.map(g => {
@@ -892,7 +1005,7 @@ function renderShop() {
 
     let rh = '';
     if (ups.length) {
-      rh += '<h3>道具</h3>' + ups.map(u => itemHtml({ id: u.id, iconHtml: icon(u.icon), name: u.name, sub: u.desc, cost: u.cost, action: 'up' })).join('');
+      rh += '<h3>道具</h3>' + ups.map(u => itemHtml({ id: u.id, iconHtml: icon(u.icon), name: u.name, sub: u.desc, cost: u.cost * costMul(), action: 'up' })).join('');
     }
     if (res.length) {
       rh += '<h3>研究</h3>' + res.map(r => {
@@ -925,7 +1038,7 @@ function renderAch() {
       ${icon(S.ach[a.id] ? 'trophy' : 'lock', 'ach-ico')}<span class="ach-name">${S.ach[a.id] ? esc(a.name) : '？？？'}</span><span class="ach-desc">${esc(a.desc)}</span></div>`).join('')}</div>
     <h3>偶然の単語</h3>
     <p class="muted small">打鍵記録に偶然あらわれた単語。見つけるたびにボーナス。</p>
-    <div class="words">${WORDS.map(w => S.words[w] ? `<span class="word got">${esc(w)}<small>×${S.words[w]}</small></span>` : `<span class="word">${'・'.repeat(w.length)}</span>`).join('')}</div>`;
+    <div class="words">${ALL_WORDS.map(w => S.words[w] ? `<span class="word got">${esc(w)}<small>×${S.words[w]}</small></span>` : `<span class="word">${'・'.repeat(w.length)}</span>`).join('')}</div>`;
 }
 
 function renderBooks() {
@@ -933,7 +1046,7 @@ function renderBooks() {
   dirty.books = false;
   let html = '<h3>名作</h3>';
   html += S.books.length ? '<div class="shelf">' + S.books.map((b, i) => {
-    const m = MISSIONS.find(x => x.id === b.id);
+    const m = ALL_MISSIONS.find(x => x.id === b.id);
     return `<button class="book" data-book="${i}" style="--hue:${(i * 47) % 360}"><span>${esc(m.display.split('\n')[0])}</span></button>`;
   }).join('') + '</div><p class="muted small">背表紙を押すと、もう一度上映される。</p>' : lockedHtml('まだ完成した作品はない。', icon('library', 'locked-ico'));
   html += `<h3>迷作　${S.meisaku.length} / ${MEISAKU_MAX}</h3>`;
@@ -1055,11 +1168,17 @@ function closeModal() {
   if (d) d();
 }
 
-function queueCine(m, no, added) {
+function chapterOfMission(id) {
+  return Math.max(0, CHAPTERS.findIndex(c => c.missions.some(x => x.id === id)));
+}
+
+function queueCine(m, no, added, ci) {
+  const c = CHAPTERS[ci === undefined ? chapterOfMission(m.id) : ci];
   const keysHtml = added && added.length
     ? `<div class="newkeys"><span class="kicker">NEW KEYS</span>${added.map(c => `<span class="kc new">${esc(c)}</span>`).join('')}</div>` : '';
   queueOverlay(done => FX.cinematic({
-    kicker: `CHAPTER I　·　第 ${no} 作`,
+    kicker: `CHAPTER ${c.roman}　·　第 ${no} 作`,
+    horizontal: !c.vertical,
     display: m.display,
     source: m.source,
     reward: m.reward,
@@ -1099,6 +1218,7 @@ function bindUI() {
   $('golden').innerHTML = icon('banana');
 
   $('typeKey').addEventListener('click', doClick);
+  $('travelBox').addEventListener('click', e => { if (e.target.closest('#travelBtn')) travel(); });
   $('hintBtn').addEventListener('click', () => { Sound.ensure(); useHint(); render(); });
   document.addEventListener('keydown', e => {
     if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -1137,7 +1257,8 @@ function bindUI() {
     const book = e.target.closest('.book');
     if (book) {
       const b = S.books[+book.dataset.book];
-      queueCine(MISSIONS.find(x => x.id === b.id), MISSIONS.findIndex(x => x.id === b.id) + 1, []);
+      const ci = chapterOfMission(b.id);
+      queueCine(ALL_MISSIONS.find(x => x.id === b.id), CHAPTERS[ci].missions.findIndex(x => x.id === b.id) + 1, [], ci);
     }
   });
 

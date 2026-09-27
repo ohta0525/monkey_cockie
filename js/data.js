@@ -2,11 +2,11 @@
 'use strict';
 
 // 外れ用に追加されていくキーの順番
-const DECOY_ORDER = 'あいうえおかけくそたてなぬねひへほまめやゆよらろれわをんせすしつぬむ' +
+const DECOY_JP = 'あいうえおかけくそたてなぬねひへほまめやゆよらろれわをんせすしつぬむ' +
   'ぎぐげござぜぞだぢづどばぶべぱぴぷぺぽ';
 
 // decoys: そのミッション開始時に追加される外れキーの数
-const MISSIONS = [
+const MISSIONS_JP = [
   { id: 'konnichiwa', title: 'はじめてのあいさつ', lines: ['こんにちは'], decoys: 3, display: 'こんにちは', source: '',
     reward: '最初の猿が仲間に！ 猿の雇用が解禁されました。' },
   { id: 'saru', title: '自己紹介', lines: ['さる'], decoys: 2, display: '猿', source: '',
@@ -30,8 +30,65 @@ const MISSIONS = [
     reward: '猿たちは世の無常を知った。' },
   { id: 'tanka', title: '短歌', lines: ['たごのうらに', 'うちいでてみれば', 'しろたえの', 'ふじのたかねに', 'ゆきはふりつつ'], decoys: 12,
     display: '田子の浦に\nうち出でて見れば\n白妙の\n富士の高嶺に\n雪は降りつつ', source: '山部赤人（小倉百人一首 第4番）',
-    reward: '日本編クリア！ 猿たちはイギリスへの渡航準備を始めた……' },
+    reward: '日本編クリア！ 猿たちはイギリスへの渡航準備を始めた……', final: true },
 ];
+
+// 偶然の単語
+const WORDS_JP = ['さる', 'ねこ', 'いぬ', 'はな', 'うみ', 'やま', 'さくら', 'ばなな', 'ごりら', 'すいか', 'めだか', 'からす', 'きつね',
+  'たぬき', 'うさぎ', 'こあら', 'とまと', 'みかん', 'りんご', 'ことば', 'しあわせ', 'うきうき'];
+
+// ───────── 第二章 英国編 ─────────
+// 本物のタイプライターと同じく、大文字・小文字・句読点・空白もすべてキー。
+const DECOY_EN = "etaoinshrdlu TAOSWIBHMcmfwypvbgkjqxz,.'?!;:-CDEFGJKLNPQRUVXYZ";
+
+const MISSIONS_EN = [
+  { id: 'hello', title: 'はじめての英語', lines: ['Hello'], decoys: 3, display: 'Hello', source: '',
+    reward: '猿たちはロンドンの言葉を覚え始めた。' },
+  { id: 'monkey', title: '自己紹介', lines: ['Monkey'], decoys: 2, display: 'Monkey', source: '',
+    reward: '猿たちは自分の英語名を知った。' },
+  { id: 'tobe', title: 'あの一節の、はじまり', lines: ['To be'], decoys: 3, display: 'To be', source: '',
+    reward: 'どこかで聞いたことのある響き……' },
+  { id: 'name', title: '名前とは', lines: ["What's in a name?"], decoys: 3, display: "What's in a name?", source: 'Romeo and Juliet',
+    reward: '猿たちは恋を知った。' },
+  { id: 'stage', title: '世界は舞台', lines: ["All the world's", 'a stage'], decoys: 3, display: "All the world's\na stage", source: 'As You Like It',
+    reward: '猿たちは自分が役者であることに気づいた。' },
+  { id: 'brevity', title: '簡潔こそ', lines: ['Brevity is the soul', 'of wit'], decoys: 3, display: 'Brevity is the soul\nof wit', source: 'Hamlet',
+    reward: '猿たちは短く打つことを覚えた。' },
+  { id: 'sonnet', title: 'ソネット十八番', lines: ['Shall I compare thee', "to a summer's day?"], decoys: 4, display: "Shall I compare thee\nto a summer's day?", source: 'Sonnet 18',
+    reward: '猿たちは夏の日を想った。' },
+  { id: 'question', title: 'それが問題だ', lines: ['To be, or not to be,', 'that is the question'], decoys: 8, display: 'To be, or not to be,\nthat is the question', source: 'Hamlet',
+    reward: '猿たちはついに、あの問いに辿り着いた。' },
+  { id: 'soliloquy', title: 'ハムレットの独白', lines: ["Whether 'tis nobler in the mind to suffer", 'The slings and arrows of outrageous fortune,', 'Or to take arms against a sea of troubles,', 'And by opposing end them.'], decoys: 26,
+    display: "Whether 'tis nobler in the mind to suffer\nThe slings and arrows of outrageous fortune,\nOr to take arms against a sea of troubles,\nAnd by opposing end them.", source: 'Hamlet, Act III, Scene 1',
+    reward: '英国編クリア！ 無限の猿は、シェイクスピアを書き上げた。', final: true },
+];
+
+const WORDS_EN = ['ape', 'cat', 'dog', 'sea', 'sun', 'art', 'tea', 'ham', 'love', 'king', 'bard', 'play', 'rose', 'moon', 'star', 'queen', 'hello', 'monkey'];
+
+const CHAPTERS = [
+  { id: 'jp', roman: 'I', name: '日本編', missions: MISSIONS_JP, decoys: DECOY_JP, words: WORDS_JP, vertical: true, costMul: 1 },
+  // 英国ではすべてが高い（名声ボーナスと釣り合わせる）
+  { id: 'en', roman: 'II', name: '英国編', missions: MISSIONS_EN, decoys: DECOY_EN, words: WORDS_EN, vertical: false, costMul: 10 },
+];
+
+// 現在の章のデータ（setChapter で切り替える）
+let MISSIONS = MISSIONS_JP;
+let DECOY_ORDER = DECOY_JP;
+let WORDS = WORDS_JP;
+const ALL_MISSIONS = CHAPTERS.flatMap(c => c.missions);
+const ALL_WORDS = CHAPTERS.flatMap(c => c.words);
+
+function setChapter(i) {
+  const c = CHAPTERS[i] || CHAPTERS[0];
+  MISSIONS = c.missions;
+  DECOY_ORDER = c.decoys;
+  WORDS = c.words;
+}
+
+// 渡航で得る永続ボーナス：完成させた作品1つにつき +20%
+function fameFor(booksCount) {
+  return 1 + 0.2 * booksCount;
+}
 
 const GENERATORS = [
   { id: 'kozaru',     art: 'h:kozaru',      name: '子猿',               kps: 0.125,      cost: 15,    desc: 'キーボードを叩くのが大好き。' },
@@ -53,8 +110,8 @@ const GEN_TIERS = [
 
 const UPGRADES = [
   { id: 'hands',   icon: 'hand', name: '両手打ち',             desc: 'クリックの打鍵数 ×2',             cost: 40,    clickMul: 2, cond: () => true },
-  { id: 'finger',  icon: 'pointer', name: '指サック',             desc: 'クリックの打鍵数 ×2',             cost: 600,   clickMul: 2, cond: s => s.missionIdx >= 1 },
-  { id: 'mech',    icon: 'keyboard', name: 'メカニカルキーボード', desc: 'クリックの打鍵数 ×2',             cost: 9000,  clickMul: 2, cond: s => s.missionIdx >= 3 },
+  { id: 'finger',  icon: 'pointer', name: '指サック',             desc: 'クリックの打鍵数 ×2',             cost: 600,   clickMul: 2, cond: s => s.chapter > 0 || s.missionIdx >= 1 },
+  { id: 'mech',    icon: 'keyboard', name: 'メカニカルキーボード', desc: 'クリックの打鍵数 ×2',             cost: 9000,  clickMul: 2, cond: s => s.chapter > 0 || s.missionIdx >= 3 },
   { id: 'banana1', icon: 'banana', name: 'バナナの差し入れ',     desc: 'クリックに毎秒打鍵の3%を上乗せ',  cost: 800,   clickPct: 0.03, cond: s => totalMonkeys(s) >= 3 },
   { id: 'banana2', icon: 'banana', name: 'バナナの房',           desc: 'クリックに毎秒打鍵の5%を上乗せ',  cost: 3e4,   clickPct: 0.05, cond: s => s.ups.banana1 },
   { id: 'banana3', icon: 'banana', name: 'バナナ農園',           desc: 'クリックに毎秒打鍵の8%を上乗せ',  cost: 2e6,   clickPct: 0.08, cond: s => s.ups.banana2 },
@@ -63,27 +120,24 @@ const UPGRADES = [
 const RESEARCH = [
   { id: 'edu',  name: '教育',       icon: 'graduation-cap', max: 10, base: 120, growth: 5,
     desc: lv => `次に必要な文字が出やすくなる（当たり重み ×${(1 + 0.5 * lv).toFixed(1)} → ×${(1 + 0.5 * (lv + 1)).toFixed(1)}）`,
-    cond: s => s.missionIdx >= 1 },
+    cond: s => s.chapter > 0 || s.missionIdx >= 1 },
   { id: 'insp', name: 'ひらめき',   icon: 'lightbulb', max: 7, base: 100, growth: 4,
     desc: lv => `ひらめきゲージが満タンになるまでの外れ回数 キー数×${inspMaxAt(lv).toFixed(1)} → ×${inspMaxAt(lv + 1).toFixed(1)}`,
-    cond: s => s.missionIdx >= 3 },
+    cond: s => s.chapter > 0 || s.missionIdx >= 3 },
   { id: 'hint', name: '助言',       icon: 'notebook-pen', max: 6, base: 150, growth: 5,
     desc: lv => `ヒントの待ち時間 ${hintCdAt(lv)}秒 → ${hintCdAt(lv + 1)}秒`,
-    cond: s => s.missionIdx >= 1 },
+    cond: s => s.chapter > 0 || s.missionIdx >= 1 },
   { id: 'team', name: '執筆チーム', icon: 'users', max: 4, base: 300, growth: 8,
     desc: lv => `猿チームを追加して ${lv + 2} 行を同時に打つ`,
-    cond: s => s.missionIdx >= 4 },
+    cond: s => s.chapter > 0 || s.missionIdx >= 4 },
   { id: 'away', name: '留守番',     icon: 'moon', max: 5, base: 500, growth: 6,
     desc: lv => `留守中の効率 ${50 + 10 * lv}%→${50 + 10 * (lv + 1)}%、上限 ${2 + 2 * lv}→${4 + 2 * lv}時間`,
-    cond: s => s.missionIdx >= 1 },
+    cond: s => s.chapter > 0 || s.missionIdx >= 1 },
 ];
 
 function inspMaxAt(lv) { return Math.max(0.5, 1.5 - 0.15 * lv); }
 function hintCdAt(lv) { return Math.max(8, 30 - 4 * lv); }
 
-// 偶然の単語
-const WORDS = ['さる', 'ねこ', 'いぬ', 'はな', 'うみ', 'やま', 'さくら', 'ばなな', 'ごりら', 'すいか', 'めだか', 'からす', 'きつね',
-  'たぬき', 'うさぎ', 'こあら', 'とまと', 'みかん', 'りんご', 'ことば', 'しあわせ', 'うきうき'];
 
 // 名前つきの猿
 const MONKEY_NAMES = ['ジョージ', 'モモ', 'サスケ', 'ハヌマン', 'ウィリアム', 'ココ', 'ボノ', 'キキ', 'タロウ', 'ハナコ',
@@ -121,9 +175,11 @@ const ACHIEVEMENTS = [
     .map(([n, name]) => ({ id: 'click' + n, name, desc: `${fmt(n)} 回クリック`, check: s => s.clicks >= n })),
   ...[[1, '最初の同僚'], [10, '小さな群れ'], [50, '猿山'], [100, '猿の大行進'], [250, '猿の帝国']]
     .map(([n, name]) => ({ id: 'monkey' + n, name, desc: `猿と施設を合計 ${n} 所持`, check: s => totalMonkeys(s) >= n })),
-  ...[[1, 'セレンディピティ'], [5, '偶然の語彙'], [10, '猿の国語辞典'], [WORDS.length, '無限の語彙']]
+  ...[[1, 'セレンディピティ'], [5, '偶然の語彙'], [10, '猿の国語辞典'], [WORDS_JP.length, '無限の語彙']]
     .map(([n, name]) => ({ id: 'word' + n, name, desc: `偶然の単語を ${n} 種類発見`, check: s => Object.keys(s.words).length >= n })),
-  ...MISSIONS.map((m, i) => ({ id: 'm_' + m.id, name: `『${m.display.split('\n')[0]}』`, desc: `ミッション「${m.title}」を完成`, check: s => s.missionIdx > i })),
+  ...ALL_MISSIONS.map(m => ({ id: 'm_' + m.id, name: `『${m.display.split('\n')[0]}』`, desc: `ミッション「${m.title}」を完成`, check: s => s.books.some(b => b.id === m.id) })),
+  { id: 'travel', name: '渡航', desc: 'イギリスへ渡る', check: s => s.chapter >= 1 },
+  { id: 'wordEn', name: 'Serendipity', desc: '英語の偶然の単語を5種類発見', check: s => WORDS_EN.filter(w => s.words[w]).length >= 5 },
   ...[[10, 'ノリノリ'], [30, 'トランス状態'], [60, '猿神降臨']]
     .map(([n, name]) => ({ id: 'combo' + n, name, desc: `コンボ ${n} 達成`, check: s => s.bestCombo >= n })),
   ...[[1, '迷作誕生'], [10, '迷作全集']]
