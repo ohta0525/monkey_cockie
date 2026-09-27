@@ -7,12 +7,12 @@
   <meta name="description" content="猿が無限にタイプしたらシェイクスピアも書けるのか？ 放置型タイピングゲーム">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@400;700&family=Special+Elite&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@400;700&family=Yuji+Syuku&family=Special+Elite&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <header class="topbar">
-    <h1 class="logo">無限の猿<span>タイピスト</span></h1>
+    <h1 class="logo"><img class="logo-img" src="assets/fluent/monkey_face.png" alt="">無限の猿<span>タイピスト</span></h1>
     <div class="stats">
       <div class="stat"><span class="stat-label">打鍵</span><span id="statKeys" class="stat-value">0</span></div>
       <div class="stat"><span class="stat-label">毎秒</span><span id="statKps" class="stat-value">0</span></div>
@@ -22,7 +22,7 @@
   </header>
 
   <div id="strikeBanner" class="strike-banner" hidden>
-    ✊ 猿たちがストライキ中！（生産 ×0.5）
+    <img class="strike-img" src="assets/fluent/raised_fist.png" alt=""> 猿たちがストライキ中！（生産 ×0.5）
     <button id="strikeBtn" class="btn">🍌 バナナで説得する</button>
   </div>
 
@@ -36,21 +36,48 @@
 
       <div class="paper" id="paper"></div>
 
-      <div class="odds" id="odds"></div>
-
-      <div class="stream-wrap">
-        <div class="stream-label">猿の打鍵ログ</div>
-        <div class="stream" id="stream"></div>
+      <div class="gauges">
+        <div class="gauge">
+          <img class="gauge-img" src="assets/fluent/light_bulb.png" alt="">
+          <div class="gauge-body">
+            <div class="gauge-label">ひらめき <span id="inspText"></span></div>
+            <div class="bar"><div class="bar-fill insp" id="inspFill"></div></div>
+          </div>
+        </div>
+        <div class="gauge">
+          <img class="gauge-img" src="assets/fluent/fire.png" alt="">
+          <div class="gauge-body">
+            <div class="gauge-label" id="comboText"></div>
+            <div class="bar"><div class="bar-fill combo" id="comboFill"></div></div>
+          </div>
+        </div>
+        <button id="hintBtn" class="hint-btn" title="次の1文字を猿に教える">
+          <img class="gauge-img" src="assets/fluent/memo.png" alt="">
+          <span><span class="gauge-label">ヒント</span><br><span id="hintText" class="hint-text"></span></span>
+        </button>
       </div>
 
-      <div class="key-area">
+      <div class="keyboard-wrap">
+        <div class="kb-head"><span>猿のタイプライター</span><span id="odds" class="odds"></span></div>
+        <div class="keyboard" id="keyboard"></div>
+      </div>
+
+      <div class="key-area" id="keyArea">
+        <div class="key-bubbles" id="keyBubbles"></div>
         <button id="typeKey" class="typekey" aria-label="打鍵する">
           <span class="typekey-face">打</span>
         </button>
-        <div class="key-hint">クリック／どのキーでも 1打鍵</div>
+        <div class="key-hint">クリック／どのキーでも打鍵</div>
       </div>
 
-      <div id="golden" class="golden" hidden title="金のバナナ！">🍌</div>
+      <div class="stream-wrap">
+        <div class="stream-label">打鍵ログ</div>
+        <div class="stream" id="stream"></div>
+      </div>
+
+      <div class="room" id="room"></div>
+
+      <img id="golden" class="golden" src="assets/fluent/banana.png" alt="金のバナナ" title="金のバナナ！" hidden>
     </section>
 
     <aside class="side">
@@ -81,6 +108,7 @@
             <button id="resetBtn" class="btn danger">最初からやり直す</button>
           </div>
           <p class="muted small">「猿が無限にタイプライターを叩けば、いつかシェイクスピアを書き上げる」——無限の猿定理より。</p>
+          <p class="muted small">画像素材：<a href="https://github.com/microsoft/fluentui-emoji" target="_blank" rel="noopener">Microsoft Fluent Emoji</a>（MIT License）</p>
         </div>
       </div>
       <div class="log-wrap">
